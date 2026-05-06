@@ -26,7 +26,7 @@ namespace MWIInductable {
 	int __thiscall GetInductionType(uintptr_t ptr) {
 		IINDUCTABLE_FUNCTION_LOG("GetInductionType");
 		auto pThis = GetEngineRacer(ptr);
-		if (IsReformedTunings()) return INDUCTIONUC_NONE; // i think this is what crashes the game when you start driving in reformed?
+		//return INDUCTIONUC_NONE; // i think this is what crashes the game when you start driving in reformed?
 		return pThis->InductionType();
 	}
 

@@ -1,13 +1,14 @@
-bool IsReformedTunings() {
-	return Attrib::FindCollection(Attrib::StringHash32("physics_tuning"), Attrib::StringHash32("steering_speed"));
-}
-
-enum eReformedTuning {
+enum eTuning {
 	REFORMED_TURBO_BOOST_CONTROLLER = 0, // -1.0 low rpms 1.0 high rpms
 	REFORMED_GEAR_RATIO_FINAL = 1, // -1.0 higher 1.0 lower
 	REFORMED_STEERING_SPEED = 2, // -1.0 slower 1.0 faster
 	REFORMED_HANDBRAKE_PRESSURE = 3, // -1.0 low 1.0 high
 	REFORMED_SWAYBAR_STIFFNESS = 4, // -1.0 softer 1.0 stiffer
+	UCE_HANDLINGSTYLE = 25, // -1.0 understeer 1.0 oversteer
+	UCE_RIDEHEIGHT = 26, // -1.0 front grip 1.0 rear grip
+	UCE_TRANSMISSION = 27, // -1.0 shorter 1.0 longer
+	UCE_AERO = 28, // -1.0 low 1.0 high
+	UCE_NOS = 29, // -1.0 duration 1.0 velocity
 };
 
 struct MWCarTuning {
@@ -47,7 +48,7 @@ struct MWCarTuning {
 	// transmission
 	std::vector<float> GEAR_RATIO;
 	float DIFFERENTIAL[3];
-	float GEAR_EFFICIENCY[9];
+	float GEAR_EFFICIENCY[10];
 	float TORQUE_CONVERTER;
 	float TORQUE_SPLIT;
 	float CLUTCH_SLIP;
@@ -75,7 +76,7 @@ struct MWCarTuning {
 
 	// nos
 	float NOS_DISENGAGE = 2.0;
-	float TORQUE_BOOST = 1.0;
+	float TORQUE_BOOST = 0.9;
 	float FLOW_RATE = 3.0;
 	float RECHARGE_MIN = 50;
 	float NOS_CAPACITY = 5.0;
@@ -160,7 +161,7 @@ MWCarTuning* LoadCarTuningFromFile(std::string configCarName) {
 	// transmission
 	tmp.ReadDynamicArray(config, tmp.GEAR_RATIO, "transmission", "GEAR_RATIO");
 	for (int i = 0; i < 3; i++) { tmp.DIFFERENTIAL[i] = config["transmission"]["DIFFERENTIAL"][i].value_or(1.0); }
-	for (int i = 0; i < 9; i++) { tmp.GEAR_EFFICIENCY[i] = config["transmission"]["GEAR_EFFICIENCY"][i].value_or(1.0); }
+	for (int i = 0; i < 10; i++) { tmp.GEAR_EFFICIENCY[i] = config["transmission"]["GEAR_EFFICIENCY"][i].value_or(1.0); }
 	tmp.TORQUE_CONVERTER = config["transmission"]["TORQUE_CONVERTER"].value_or(0.5);
 	tmp.TORQUE_SPLIT = config["transmission"]["TORQUE_SPLIT"].value_or(0.5);
 	tmp.CLUTCH_SLIP = config["transmission"]["CLUTCH_SLIP"].value_or(0.5);
@@ -311,7 +312,7 @@ void GetLerpedCarTuning(MWCarTuning& tmp, const std::string& model, float brake,
 	for (int i = 0; i < 3; i++) {
 		TUNED_VALUE(DIFFERENTIAL[i], drivetrain);
 	}
-	for (int i = 0; i < 9; i++) {
+	for (int i = 0; i < 10; i++) {
 		TUNED_VALUE(GEAR_EFFICIENCY[i], drivetrain);
 	}
 	TUNED_VALUE(TORQUE_CONVERTER, drivetrain);
@@ -348,13 +349,13 @@ void GetLerpedCarTuning(MWCarTuning& tmp, const std::string& model, float brake,
 	}
 	else {
 		tmp.FLOW_RATE = 3.0;
-		tmp.NOS_CAPACITY = std::lerp(2.5, 5.0, nitro);
+		tmp.NOS_CAPACITY = std::lerp(3.0, 5.0, nitro);
 		tmp.NOS_DISENGAGE = 2.0;
 		tmp.RECHARGE_MAX = 30;
 		tmp.RECHARGE_MAX_SPEED = 100;
 		tmp.RECHARGE_MIN = 50;
 		tmp.RECHARGE_MIN_SPEED = 50;
-		tmp.TORQUE_BOOST = std::lerp(0.75, 1.0, nitro);
+		tmp.TORQUE_BOOST = std::lerp(0.8, 0.9, nitro);
 	}
 
 	// induction
@@ -375,24 +376,37 @@ float GetPhysicsTuningValue(float in, float max) {
 
 void GetLerpedCarTuning(MWCarTuning& out, const std::string& model, const VehicleCustomizations* cust) {
 	if (cust) {
-		float brake = (cust->InstalledParts[CARSLOTID_BRAKE_PACKAGE].kit_num + 1) / 4.0;
-		float drivetrain = (cust->InstalledParts[CARSLOTID_DRIVETRAIN_PACKAGE].kit_num + 1) / 4.0;
-		float engine = (cust->InstalledParts[CARSLOTID_ENGINE_PACKAGE].kit_num + 1) / 4.0;
-		float induction = (cust->InstalledParts[CARSLOTID_FORCED_INDUCTION_PACKAGE].kit_num + 1) / 4.0;
+		// todo read available number of upgrade packages or check vehicle tier
+		float brake = UMath::Max(cust->InstalledParts[CARSLOTID_BRAKE_PACKAGE].kit_num / 3.0, 0.0);
+		float drivetrain = UMath::Max(cust->InstalledParts[CARSLOTID_DRIVETRAIN_PACKAGE].kit_num / 3.0, 0.0);
+		float engine = UMath::Max(cust->InstalledParts[CARSLOTID_ENGINE_PACKAGE].kit_num / 3.0, 0.0);
+		float induction = UMath::Max(cust->InstalledParts[CARSLOTID_FORCED_INDUCTION_PACKAGE].kit_num / 3.0, 0.0);
 		float nitro = cust->InstalledParts[CARSLOTID_NITROUS_PACKAGE].kit_num / 3.0;
-		float suspension = (cust->InstalledParts[CARSLOTID_SUSPENSION_PACKAGE].kit_num + 1) / 4.0;
-		float tire = (cust->InstalledParts[CARSLOTID_TIRE_PACKAGE].kit_num + 1) / 4.0;
+		float suspension = UMath::Max(cust->InstalledParts[CARSLOTID_SUSPENSION_PACKAGE].kit_num / 3.0, 0.0);
+		float tire = UMath::Max(cust->InstalledParts[CARSLOTID_TIRE_PACKAGE].kit_num / 3.0, 0.0);
 		GetLerpedCarTuning(out, model, brake, drivetrain, engine, induction, nitro, suspension, tire);
 
-		if (IsReformedTunings()) {
-			out.EBRAKE *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_HANDBRAKE_PRESSURE], 0.3);
-			out.FINAL_GEAR *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_GEAR_RATIO_FINAL], 0.1);
-			out.SWAYBAR_STIFFNESS.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_SWAYBAR_STIFFNESS], -0.1);
-			out.SWAYBAR_STIFFNESS.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_SWAYBAR_STIFFNESS], -0.1);
-		}
-	}
-	else {
-		return GetLerpedCarTuning(out, model, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+		out.FINAL_GEAR *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_GEAR_RATIO_FINAL], 0.1);
+		out.STATIC_GRIP.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_SWAYBAR_STIFFNESS], -0.1);
+		out.STATIC_GRIP.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_SWAYBAR_STIFFNESS], 0.1);
+		out.DYNAMIC_GRIP.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_SWAYBAR_STIFFNESS], -0.1);
+		out.DYNAMIC_GRIP.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_SWAYBAR_STIFFNESS], 0.1);
+		out.FINAL_GEAR *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_TRANSMISSION], -0.1);
+		out.AERO_CG *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], 0.04);
+		out.FRONT_WEIGHT_BIAS *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], -0.04);
+		out.ROLL_CENTER *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], 0.05);
+		out.SPRING_STIFFNESS.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], -0.05);
+		out.SPRING_STIFFNESS.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], 0.05);
+		out.SHOCK_STIFFNESS.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], -0.025);
+		out.SHOCK_STIFFNESS.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], 0.025);
+		out.SHOCK_EXT_STIFFNESS.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], -0.025);
+		out.SHOCK_EXT_STIFFNESS.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], 0.025);
+		out.SWAYBAR_STIFFNESS.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], -0.05);
+		out.SWAYBAR_STIFFNESS.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_HANDLINGSTYLE], 0.1);
+		out.STATIC_GRIP.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_RIDEHEIGHT], -0.1);
+		out.STATIC_GRIP.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_RIDEHEIGHT], 0.1);
+		out.DYNAMIC_GRIP.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_RIDEHEIGHT], -0.1);
+		out.DYNAMIC_GRIP.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_RIDEHEIGHT], 0.1);
 	}
 }
 
@@ -402,13 +416,10 @@ Physics::Tunings* GetVehicleMWTunings(IVehicle* veh) {
 
 	static Physics::Tunings tmp;
 	memset(&tmp, 0, sizeof(tmp));
-	if (IsReformedTunings()) {
-		//tmp.Value[Physics::Tunings::NOS] = cust->PhysicsTuning[REFORMED_TURBO_BOOST_CONTROLLER];
-		tmp.Value[Physics::Tunings::STEERING] = cust->PhysicsTuning[REFORMED_STEERING_SPEED];
-	}
-	else {
-		tmp.Value[Physics::Tunings::NOS] = cust->PhysicsTuning[VehicleCustomizations::NITROUS];
-		tmp.Value[Physics::Tunings::HANDLING] = cust->PhysicsTuning[VehicleCustomizations::TIRES];
-	}
+	tmp.Value[Physics::Tunings::NOS] = cust->PhysicsTuning[REFORMED_TURBO_BOOST_CONTROLLER];
+	tmp.Value[Physics::Tunings::STEERING] = cust->PhysicsTuning[REFORMED_STEERING_SPEED];
+	tmp.Value[Physics::Tunings::HANDLING] = cust->PhysicsTuning[REFORMED_HANDBRAKE_PRESSURE];
+	tmp.Value[Physics::Tunings::AERODYNAMICS] = cust->PhysicsTuning[UCE_AERO];
+	tmp.Value[Physics::Tunings::NOS] = cust->PhysicsTuning[UCE_NOS];
 	return &tmp;
 }
