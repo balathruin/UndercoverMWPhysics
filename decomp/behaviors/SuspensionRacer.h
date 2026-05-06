@@ -181,7 +181,7 @@ class SuspensionRacerMW : public ChassisMW {
 	void TuneWheelParams(ChassisMW::State &state);
 	void DoWheelForces(ChassisMW::State &state);
 	float CalculateMaxSteering(ChassisMW::State &state, ISteeringWheel::SteeringType steer_type);
-	float CalculateSteeringSpeed(ChassisMW::State &state);
+	//float CalculateSteeringSpeed(ChassisMW::State &state);
 	void DoWallSteer(ChassisMW::State &state);
 	void DoDriveForces(ChassisMW::State &state);
 	float DoHumanSteering(ChassisMW::State &state);

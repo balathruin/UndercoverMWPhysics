@@ -240,7 +240,7 @@ void DebugMenu() {
 		DrawMenuOption(std::format("mBurnOut.State - {}", pSuspension->mBurnOut.GetState()));
 		//DrawMenuOption(std::format("MaxSlip - {:.2f}", pSuspension->ComputeMaxSlip(LastChassisState)));
 		//DrawMenuOption(std::format("MaxSteering - {:.2f}", pSuspension->CalculateMaxSteering(LastChassisState, ISteeringWheel::kGamePad)));
-		DrawMenuOption(std::format("LateralGripScale - {:.2f}", pSuspension->ComputeLateralGripScale(LastChassisState)));
+		//DrawMenuOption(std::format("LateralGripScale - {:.2f}", pSuspension->ComputeLateralGripScale(LastChassisState)));
 		//DrawMenuOption(std::format("TractionScale - {:.2f}", pSuspension->ComputeTractionScale(LastChassisState)));
 		DrawMenuOption(std::format("Wheels - {:.2f} {:.2f}", pSuspension->mSteering.Wheels[0], pSuspension->mSteering.Wheels[1]));
 		DrawMenuOption(std::format("LastMaximum - {:.2f}", pSuspension->mSteering.LastMaximum));

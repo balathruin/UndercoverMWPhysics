@@ -129,7 +129,7 @@ namespace MWIChassis {
 		else {
 			traction = GetSuspensionRacer(ptr)->GetWheelTraction(index);
 		}
-		traction *= 1.25; // a bit of leeway so turning doesn't immediately make skidmarks
+		traction *= 1.1; // a bit of leeway so turning doesn't immediately make skidmarks
 		return UMath::Clamp(1.0f - traction, 0.0f, 1.0f);
 	}
 	float __thiscall GetDragBoost(uintptr_t ptr) {

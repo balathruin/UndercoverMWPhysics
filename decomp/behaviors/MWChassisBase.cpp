@@ -88,10 +88,10 @@ float ChassisMW::CalculateUndersteerFactor() {
 }
 
 Mps ChassisMW::ComputeMaxSlip(const ChassisMW::State &state) {
-	float ramp = UMath::Ramp(state.speed, 10.0f, 71.0f);
-	float result = ramp + 0.5f;
+	float ramp = UMath::Ramp(state.speed, 21.0f, 71.0f) * 0.5f;
+	float result = ramp + 0.2f; // reduce max slip to break traction easier
 	if (state.gear == G_REVERSE)
-		result = 71.0f;
+		result = 1.0f;
 	return result;
 }
 
@@ -123,7 +123,7 @@ float ChassisMW::CalculateOversteerFactor() {
 
 void ChassisMW::OnTaskSimulate(float dT) {}
 
-float GripVsSpeed[] = {0.833f, 0.958f, 1.008f, 1.0167f, 1.033f, 1.033f, 1.033f, 1.0167f, 1.0f, 1.0f};
+/*float GripVsSpeed[] = {0.833f, 0.958f, 1.008f, 1.0167f, 1.033f, 1.033f, 1.033f, 1.0167f, 1.0f, 1.0f};
 Table GripRangeTable(GripVsSpeed, 10, 0.0f, 1.0f);
 
 // Credits: Brawltendo
@@ -159,7 +159,7 @@ float ChassisMW::ComputeTractionScale(const ChassisMW::State &state) {
 	}
 
 	return result;
-}
+}*/
 
 void RigidBodyDamp(IRigidBody* body, float amount) {
 	UMath::Vector3& linearVel = *(UMath::Vector3*)body->GetLinearVelocity();
@@ -299,8 +299,8 @@ void ChassisMW::SetCOG(float extra_bias, float extra_ride) {
 		fwbias = 0.5f;
 	}
 	float cg_z = (front_z - rear_z) * fwbias + rear_z;
-	float cg_y = INCH2METERS(mMWAttributes->ROLL_CENTER) - (dim.y + UMath::Max(INCH2METERS(mMWAttributes->RIDE_HEIGHT.At(0) + extra_ride),
-																			  INCH2METERS(mMWAttributes->RIDE_HEIGHT.At(1) + extra_ride)));
+	float cg_y = INCH2METERS(mMWAttributes->ROLL_CENTER) - (dim.y + UMath::Lerp(INCH2METERS(mMWAttributes->RIDE_HEIGHT.At(0) + extra_ride),
+																				INCH2METERS(mMWAttributes->RIDE_HEIGHT.At(1) + extra_ride), 0.5f));
 	UMath::Vector3 cog(0.0f, cg_y, cg_z);
 	mRB->SetCenterOfGravity(&cog);
 	mRB->OverrideCOG(&cog);
@@ -385,22 +385,23 @@ void ChassisMW::ComputeState(float dT, ChassisMW::State &state) {
 }
 
 static float AeroDropOff = 0.5f;
-static float AeroDropOffMin = 0.4f;
-static float OffThrottleDragFactor = 2.0f;
-static float OffThrottleDragCenterHeight = -0.1f;
+static float AeroDropOffMin = 0.5f;
+//static float OffThrottleDragFactor = 2.0f;
+//static float OffThrottleDragCenterHeight = -0.1f;
 static const float Tweak_TuningAero_Drag = 0.25f;
 static const float Tweak_TuningAero_DownForce = 0.25f;
-static const float Tweak_PlaneDynamics = 0.0f;
+//static const float Tweak_PlaneDynamics = 0.0f;
 
 // Credits: Brawltendo
 void ChassisMW::DoAerodynamics(const ChassisMW::State &state, float drag_pct, float aero_pct, float aero_front_z, float aero_rear_z,
-							 const Physics::Tunings *tunings) {
+							 const Physics::Tunings *tunings, float pitch) {
 	if (drag_pct > 0.0f) {
 		const float dragcoef_spec = mMWAttributes->DRAG_COEFFICIENT;
 		// drag increases relative to the car's speed
 		// letting off the throttle will increase drag by OffThrottleDragFactor
-		float drag = state.speed * drag_pct * dragcoef_spec;
-		drag += drag * (OffThrottleDragFactor - 1.0f) * (1.0f - state.gas_input);
+		float drag = state.speed * drag_pct * dragcoef_spec * 1.2f; // 1.2 air density
+		// increase importance of braking by disabling OffThrottleDrag
+		//drag += drag * (OffThrottleDragFactor - 1.0f) * (1.0f - state.gas_input);
 		if (tunings) {
 			drag += drag * Tweak_TuningAero_Drag * tunings->Value[Physics::Tunings::AERODYNAMICS];
 		}
@@ -410,8 +411,8 @@ void ChassisMW::DoAerodynamics(const ChassisMW::State &state, float drag_pct, fl
 		UMath::Vector3 drag_center(state.cog);
 
 		// manipulate drag height based on off-throttle amount when 2 or more wheels are grounded
-		if (state.ground_effect >= 0.5f)
-			drag_center.y += OffThrottleDragCenterHeight * (1.0f - state.gas_input);
+		/*if (state.ground_effect >= 0.5f)
+			drag_center.y += OffThrottleDragCenterHeight * (1.0f - state.gas_input);*/
 
 		UMath::RotateTranslate(drag_center, state.matrix, drag_center);
 		mRB->ResolveForce(&drag_vector, &drag_center);
@@ -435,24 +436,28 @@ void ChassisMW::DoAerodynamics(const ChassisMW::State &state, float drag_pct, fl
 		float downforce = aero_pct * upness * forwardness * Physics::Info::AerodynamicDownforce(mMWAttributes, state.speed);
 		// lower downforce when car is in air
 		if (state.ground_effect == 0.0f) {
-			downforce *= 0.8f;
+			downforce *= 0.65f; // reduced from 0.8 for better UC map compatibility
 		}
 		if (tunings) {
 			downforce += downforce * Tweak_TuningAero_DownForce * tunings->Value[Physics::Tunings::AERODYNAMICS];
 		}
 
 		if (downforce > 0.0f) {
+			float pitch_coef = 1.f;
 			UMath::Vector3 aero_center(state.cog.x, state.cog.y, state.cog.z);
 			// when at least 1 wheel is grounded, change the downforce forward position using the aero CG and axle positions
 			if (state.ground_effect != 0.0f) {
-				aero_center.z = (aero_front_z - aero_rear_z) * (mMWAttributes->AERO_CG * 0.01f) + aero_rear_z;
+				if (pitch != 0.f) {
+					pitch_coef += (0.f - pitch) * 0.1f; // pitch affects downforce distribution
+				} // positive pitch reduces front downforce and vice versa
+				aero_center.z = (aero_front_z - aero_rear_z) * (mMWAttributes->AERO_CG * pitch_coef * 0.01f) + aero_rear_z;
 			}
 
-			if (Tweak_PlaneDynamics != 0.0f) {
+			/*if (Tweak_PlaneDynamics != 0.0f) {
 				// just some random nonsense because the DWARF says there was a block here
 				float pitch = UMath::Atan2a(UMath::Abs(state.matrix.z.z), state.matrix.z.x);
 				aero_center.z *= pitch;
-			}
+			}*/
 
 			UMath::Vector3 force(0.0f, -downforce, 0.0f);
 			UMath::RotateTranslate(aero_center, state.matrix, aero_center);

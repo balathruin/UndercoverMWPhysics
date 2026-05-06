@@ -68,13 +68,13 @@ void SuspensionRacerMW::Destroy(char a2) {
 	}
 }
 
-const float ZeroDegreeTable[6] = {0.0f};
-float TwoDegreeTable[] = {0.0f, 1.2f, 2.3f, 3.0f, 3.0f, 2.8f};
-float FourDegreeTable[] = {0.0f, 1.7f, 3.2f, 4.3f, 5.1f, 5.2f};
-float SixDegreeTable[] = {0.0f, 1.8f, 3.5f, 4.9f, 5.8f, 6.1f};
-float EightDegreeTable[] = {0.0f, 1.83f, 3.6f, 5.0f, 5.96f, 6.4f};
-float TenDegreeTable[] = {0.0f, 1.86f, 3.7f, 5.1f, 6.13f, 6.7f};
-float TwelveDegreeTable[] = {0.0f, 1.9f, 3.8f, 5.2f, 6.3f, 7.1f};
+const float ZeroDegreeTable[6] = {0.0f}; // new loadsens, increased due to disabled ComputeLateralGripScale
+float TwoDegreeTable[] =    {0.0f, 2.67f, 4.3f,  5.1f,  5.3f,  5.33f};
+float FourDegreeTable[] =   {0.0f, 3.25f, 5.55f, 7.0f,  7.7f,  8.0f};
+float SixDegreeTable[] =    {0.0f, 3.6f,  6.3f,  8.2f,  9.3f,  9.8f};
+float EightDegreeTable[] =  {0.0f, 3.8f,  6.7f,  8.9f,  10.2f, 10.8f};
+float TenDegreeTable[] =    {0.0f, 3.9f,  6.95f, 9.25f, 10.7f, 11.4f};
+float TwelveDegreeTable[] = {0.0f, 4.0f,  7.2f,  9.6f,  11.2f, 12.0f};
 
 Table ZeroDegree = Table(ZeroDegreeTable, 6, 0.0f, 10.0f);
 Table TwoDegree = Table(TwoDegreeTable, 6, 0.0f, 10.0f);
@@ -86,8 +86,8 @@ Table TwelveDegree = Table(TwelveDegreeTable, 6, 0.0f, 10.0f);
 
 Table *LoadSensitivityTable[] = {&ZeroDegree, &TwoDegree, &FourDegree, &SixDegree, &EightDegree, &TenDegree, &TwelveDegree};
 static const float NewCorneringScale = 1000.0f;
-static const float LoadFactor = 0.8f;
-static const float GripFactor = 2.5f;
+static const float LoadFactor = 1.0f;
+static const float GripFactor = 1.75f; // temp - reduce to 1 when cars are made for new physics
 
 static const float PostCollisionSteerReductionDuration = 1.0f;
 bVector2 PostCollisionSteerReductionData[] = {bVector2(0.0f, 0.2f), bVector2(0.2f, 0.5f), bVector2(0.5f, 0.7f), bVector2(0.7f, 1.0f)};
@@ -182,7 +182,7 @@ Newtons SuspensionRacerMW::Tire::ComputeLateralForce(float load, float slip_angl
 }
 
 // Credits: Brawltendo
-float SuspensionRacerMW::Tire::GetPilotFactor(const float speed) {
+/*float SuspensionRacerMW::Tire::GetPilotFactor(const float speed) {
 	float PilotFactor = 0.85f;
 
 	if (mBrakeLocked) {
@@ -198,7 +198,7 @@ float SuspensionRacerMW::Tire::GetPilotFactor(const float speed) {
 	float speed_factor = (speed - MPH2MPS(30.0f)) / MPH2MPS(20.0f);
 	float val = UMath::Clamp(speed_factor, 0.0f, 1.0f);
 	return val * (1.0f - PilotFactor) + PilotFactor;
-}
+}*/
 
 float BrakingTorque = 4.0f;
 float EBrakingTorque = 10.0f;
@@ -319,11 +319,11 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 	float dynamicfriction = 1.0f;
 	mSlip = slip_speed;
 	float skid_speed = UMath::Sqrt(slip_speed * slip_speed + lat_vel * lat_vel);
-	float pilot_factor = GetPilotFactor(body_speed);
+	//float pilot_factor = GetPilotFactor(body_speed);
 	if (skid_speed > FLOAT_EPSILON && (lat_vel != 0.0f || fwd_vel != 0.0f)) {
 		dynamicfriction = dynamicgrip_spec * mTractionBoost;
-		dynamicfriction *= pilot_factor;
-		groundfriction = mLoad * dynamicfriction / skid_speed;
+		//dynamicfriction *= pilot_factor;
+		groundfriction = mLoad * dynamicfriction / UMath::Max(skid_speed, 1.0f);
 		float slipgroundfriction = mLoad * dynamicfriction / UMath::Sqrt(fwd_vel * fwd_vel + lat_vel * lat_vel);
 		CheckForBrakeLock(abs_fwd * slipgroundfriction);
 	}
@@ -337,7 +337,8 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 			mLateralForce /= dynamicfriction;
 			mLongitudeForce /= dynamicfriction;
 		}
-		mLongitudeForce = UMath::Limit(mLongitudeForce, GetTotalTorque() / mRadius);
+		// ensure grip is reduced while traction is broken
+		mLongitudeForce = UMath::Limit(mLongitudeForce, GetTotalTorque() / mRadius * (dynamicgrip_spec / staticgrip_spec));
 	} else {
 		mBrakeLocked = false;
 		mLongitudeForce = GetTotalTorque() / mRadius;
@@ -366,7 +367,7 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 	float len_force = UMath::Sqrt(mLateralForce * mLateralForce + mLongitudeForce * mLongitudeForce);
 	float max_force = mLoad * staticgrip_spec * mTractionBoost * mDriftFriction;
 
-	max_force *= pilot_factor;
+	//max_force *= pilot_factor;
 
 	mTraction = 1.0f;
 	float max_slip = mMaxSlip;
@@ -490,16 +491,28 @@ void SuspensionRacerMW::OnTaskSimulate(float dT) {
 
 	ISimable *owner = GetOwner();
 
-	float ride_extra = 0.0f;
+	//float ride_extra = 0.0f;
 	const Physics::Tunings *tunings = GetVehicleMWTunings(GetVehicle());
-	if (tunings) {
+	/*if (tunings) {
 		ride_extra = tunings->Value[Physics::Tunings::RIDEHEIGHT];
-	}
-	SetCOG(0.0, ride_extra);
+	}*/
 
 	State state;
 	ComputeState(dT, state);
 	LastChassisState = state;
+
+	float sum_compression = mTires[0]->GetCompression() + mTires[1]->GetCompression() + mTires[2]->GetCompression() + mTires[3]->GetCompression();
+	float bias_extra = UMath::Ramp(state.speed, 1.f, 111.f) * 2.5f; // dynamic front_weight_bias using vehicle speed like UC
+	float ride_extra = sum_compression * 0.25f; // dynamic roll_center (reduced by increasing compression)
+	SetCOG(bias_extra, ride_extra);
+
+	float pitch = 0.f; // calculate pitch angle from compression
+	if (sum_compression > 0.f) { // avoid pitch being 1 or -1
+		pitch = ((mTires[2]->GetCompression() + mTires[3]->GetCompression()) / sum_compression -
+				(mTires[0]->GetCompression() + mTires[1]->GetCompression()) / sum_compression) * 0.99f;
+	}
+	float compression = sum_compression / (INCH2METERS(mMWAttributes->RIDE_HEIGHT.At(0)) * 2.f +
+											INCH2METERS(mMWAttributes->RIDE_HEIGHT.At(1)) * 2.f);
 
 	mSteering.CollisionTimer = UMath::Max(mSteering.CollisionTimer - state.time, 0.0f);
 	mGameBreaker = 0.0f;
@@ -518,13 +531,14 @@ void SuspensionRacerMW::OnTaskSimulate(float dT) {
 	}
 
 	float max_slip = ComputeMaxSlip(state);
-	float grip_scale = ComputeLateralGripScale(state);
-	float traction_scale = ComputeTractionScale(state);
+	float grip_scale = 1.0f; //ComputeLateralGripScale(state);
+	float traction_scale = 1.0f; //ComputeTractionScale(state);
 	float steerdrag_reduction = UMath::Lerp(Tweak_SteerDragReduction, 1.0f, mGameBreaker);
 	if ((state.flags & 1) == 0) {
 		float launch = GetVehicle()->GetPerfectLaunch();
 		if (launch > 0.0f) {
-			traction_scale += launch * 0.25f;
+			traction_scale += launch * 0.5f; // higher traction for new grip
+			mBurnOut.Reset();
 		}
 	}
 
@@ -532,12 +546,15 @@ void SuspensionRacerMW::OnTaskSimulate(float dT) {
 		mTires[i]->BeginFrame(max_slip, grip_scale, traction_scale, steerdrag_reduction);
 	}
 
-	float drag_pct = 1.0f - mGameBreaker * 0.75f;
+	// compression affects drag slightly
+	float drag_pct = (1.0f - mGameBreaker * 0.75f) * UMath::Pow(1.f - compression, 0.01f);
 	float aero_pct = 1.0f;
 	if (state.driver_style == STYLE_DRAG) {
 		aero_pct = Tweak_DragAeroMult;
-	}
-	DoAerodynamics(state, drag_pct, aero_pct, GetWheel(0).GetLocalArm().z, GetWheel(2).GetLocalArm().z, tunings);
+	} else if (pitch != 0.f) {
+		aero_pct *= UMath::Pow(1.f - pitch, 0.1f); // pitch affects downforce level
+	} // positive pitch reduces downforce and vice versa
+	DoAerodynamics(state, drag_pct, aero_pct, GetWheel(0).GetLocalArm().z, GetWheel(2).GetLocalArm().z, tunings, pitch);
 	DoDriveForces(state);
 	DoWheelForces(state);
 
@@ -689,13 +706,13 @@ float SuspensionRacerMW::DoHumanSteering(State &state) {
 	if (steer_type == ISteeringWheel::kGamePad) {
 		int steer_remapping = SteerInputRemapping;
 		steer_input = SteerInputRemapTables[steer_remapping].GetValue(steer_input);
-		float steering_speed = (CalculateSteeringSpeed(state) * steering_coeff) * state.time;
+		/*float steering_speed = (CalculateSteeringSpeed(state) * steering_coeff) * state.time;
 		float max_diff = steer + steering_speed;
 		newsteer = bClamp(newsteer, steer - steering_speed, max_diff);
 		// this is absolutely pointless but it's part of the steering calculation for whatever reason
 		if (std::abs(newsteer) < 0.0f) {
 			newsteer = 0.0f;
-		}
+		}*/
 	}
 	mSteering.LastInput = steer_input;
 	mSteering.Previous = newsteer;
@@ -764,7 +781,7 @@ float SuspensionRacerMW::CalculateMaxSteering(State &state, ISteeringWheel::Stee
 }
 
 // Credits: Brawltendo
-float SuspensionRacerMW::CalculateSteeringSpeed(State &state) {
+/*float SuspensionRacerMW::CalculateSteeringSpeed(State &state) {
 	// get a rough approximation of how fast the player is steering
 	// this ends up creating a bit of a difference in how fast you can actually steer on a controller under normal circumstances
 	// using a keyboard will always give you the fastest steering possible
@@ -779,7 +796,7 @@ float SuspensionRacerMW::CalculateSteeringSpeed(State &state) {
 
 	float steer_input = std::abs(mSteering.InputAverage.GetValue());
 	return steer_speed * SteeringInputCoeffTable.GetValue(steer_input);
-}
+}*/
 
 // Credits: Brawltendo
 float SuspensionRacerMW::DoAISteering(State &state) {
@@ -810,13 +827,13 @@ void SuspensionRacerMW::DoSteering(State &state, UMath::Vector3 &right, UMath::V
 	DoWallSteer(state);
 }
 
-GraphEntry<float> BurnoutFrictionData[] = {{0.0f, 1.0f}, {5.0f, 0.8f}, {9.0f, 0.9f}, {12.6f, 0.833f}, {17.1f, 0.72f}, {25.0f, 0.65f}};
+GraphEntry<float> BurnoutFrictionData[] = {{0.0f, 1.0f}, {3.6f, 0.95f}, {7.1f, 0.9f}, {11.85f, 0.81f}, {17.8f, 0.72f}, {25.0f, 0.64f}};
 tGraph<float> BurnoutFrictionTable(BurnoutFrictionData, 6);
 float BurnOutCancelSlipValue = 0.5f;
-float asd[] = {1.0f, 2.0f, 3.0f};
+//float asd[] = {1.0f, 2.0f, 3.0f};
 float BurnOutYawCancel = 0.5f;
 float BurnOutAllowTime = 1.0f;
-float BurnOutMaxSpeed = 20.0f;
+float BurnOutMaxSpeed = 159.0f;
 float BurnOutFishTailTime = 2.0f;
 int BurnOutFishTails = 6;
 static const float Tweak_MinThrottleForBurnout = 1.0f;
@@ -844,7 +861,7 @@ void SuspensionRacerMW::Burnout::Update(float dT, float speedmph, float max_slip
 	else if (speedmph < BurnOutMaxSpeed) {
 		const float friction_mult = 1.4f;
 		// these conditions were split, there was probably some debug stuff here
-		if (max_slip > 0.5f) {
+		if (max_slip > 0.2f) {
 			float burnout_coeff;
 			BurnoutFrictionTable.GetValue(&burnout_coeff, max_slip);
 			SetTraction(burnout_coeff / friction_mult);
@@ -892,20 +909,22 @@ void SuspensionRacerMW::DoWallSteer(State &state) {
 	}
 }
 
-static float LowSpeedSpeed = 0.0f;
+/*static float LowSpeedSpeed = 0.0f;
 static float HighSpeedSpeed = 30.0f;
 static float MaxYawBonus = 0.35f;
 static float LowSpeedYawBoost = 0.0f;
 static float HighSpeedYawBoost = 1.0f;
 static float YawEBrakeThreshold = 0.5f;
-static float YawAngleThreshold = 20.0f;
+static float YawAngleThreshold = 20.0f;*/
 
 // Credits: Brawltendo
 float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, float grade) {
 	yaw = std::abs(yaw);
 	float retval = 1.0f;
-	retval += std::abs(grade);
-	if (ebrake > YawEBrakeThreshold && yaw < DEG2RAD(YawAngleThreshold))
+	retval += std::abs(grade) * yawcontrol;
+	return retval;
+	// drastically weaker YawFrictionBoost to increase importance of rear axle grip
+	/*if (ebrake > YawEBrakeThreshold && yaw < DEG2RAD(YawAngleThreshold))
 		return retval;
 
 	float speed_factor = (speed - LowSpeedSpeed) / (HighSpeedSpeed - LowSpeedSpeed);
@@ -913,7 +932,7 @@ float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, f
 	float bonus = yaw * yawcontrol * boost;
 	if (bonus > MaxYawBonus)
 		bonus = MaxYawBonus;
-	return retval + bonus;
+	return retval + bonus;*/
 }
 
 // Credits: Brawltendo
@@ -940,16 +959,17 @@ float SuspensionRacerMW::CalcYawControlLimit(float speed) {
 
 GraphEntry<float> DriftStabilizerData[] = {{0.0f, 0.0f},		{0.2617994f, 0.1f},  {0.52359879f, 0.45f}, {0.78539819f, 0.85f},
 										   {1.0471976f, 0.95f}, {1.5533431f, 1.15f}, {1.5707964f, 0.0f}};
-float DriftRearFrictionData[] = {1.1f, 0.95f, 0.87f, 0.77f, 0.67f, 0.6f, 0.51f, 0.43f, 0.37f, 0.34f};
+float DriftRearFrictionData[] = {1.0f, 0.99f, 0.98f, 0.96f, 0.94f, 0.92f, 0.9f, 0.88f, 0.86f, 0.85f};
+// repurpose drifting as slip curve dropoff, reducing grip above 12° of slip
 tGraph<float> DriftStabilizerTable(DriftStabilizerData, 7);
 Table DriftRearFrictionTable(DriftRearFrictionData, 10, 0.0f, 1.0f);
 static const float DriftRotationalStabalizer = 4.0f;
 static const float DriftYawAngularVelCoeff = 0.5f;
-static const float Tweak_MinDriftSpeedMPH = 30.0f;
+static const float Tweak_MinDriftSpeedMPH = 47.0f;
 static const float Tweak_DriftSlipAngle = 12.0f;
 static const float Tweak_DriftEnterSpeed = 30.0f;
 static const float Tweak_DriftExitSpeed = 30.0f;
-static const float Tweak_DriftCounterSteer = 4.0f;
+static const float Tweak_DriftCounterSteer = 1.0f;
 static const float Tweak_GameBreakerDriftRechargePerSec = 0.5f;
 static const float Tweak_GameBreakerDriftRechargeMinSpeed = 35.0f;
 static const float Tweak_GameBreakerDriftRechargeYaw = 30.0f;
@@ -1046,18 +1066,18 @@ void SuspensionRacerMW::DoDrifting(const State &state) {
 	}
 }
 
-float EBrakeYawControlMin = 0.5f;
-float EBrakeYawControlOnSpeed = 1.0f;
-float EBrakeYawControlOffSpeed = 20.0f;
+float EBrakeYawControlMin = 0.0f;
+//float EBrakeYawControlOnSpeed = 1.0f;
+//float EBrakeYawControlOffSpeed = 20.0f;
 float EBrake180Yaw = 0.3f;
 float EBrake180Speed = 80.0f;
-static const float Tweak_GameBreakerGripIncrease = 0.75f;
+/*static const float Tweak_GameBreakerGripIncrease = 0.75f;
 static const float Tweak_StagingTraction = 0.25f;
 static const float Tweak_DragYawControl = 0.1f;
 static const float Tweak_StabilityControl = 2.5f;
 static const float Tweak_BlownTireEbrake = 0.0f;
 static const float Tweak_BlownTireBrake = 1.0f;
-static const float Tweak_BlownTireTraction = 0.3f;
+static const float Tweak_BlownTireTraction = 0.3f;*/
 
 // Credits: Brawltendo
 void SuspensionRacerMW::TuneWheelParams(State &state) {
@@ -1068,16 +1088,8 @@ void SuspensionRacerMW::TuneWheelParams(State &state) {
 	float yawcontrol = mSteering.YawControl;
 
 	// engaging the handbrake decreases steering yaw control
-	if (ebrake >= 0.5f) {
-		yawcontrol -= EBrakeYawControlOffSpeed * t;
-		if (yawcontrol < EBrakeYawControlMin) {
-			yawcontrol = EBrakeYawControlMin;
-		}
-	} else {
-		yawcontrol += EBrakeYawControlOnSpeed * t;
-		if (yawcontrol > 1.0f) {
-			yawcontrol = 1.0f;
-		}
+	if (ebrake >= 0.1f) {
+		yawcontrol = EBrakeYawControlMin;
 	}
 	mSteering.YawControl = yawcontrol;
 
@@ -1090,7 +1102,7 @@ void SuspensionRacerMW::TuneWheelParams(State &state) {
 		brake_biased[1] -= brake_biased[1] * tunings->Value[Physics::Tunings::BRAKES] * 0.5f;
 	}
 	float suspension_yaw_control_limit = CalcYawControlLimit(state.speed);
-	IPlayer *player = GetOwner()->GetPlayer();
+	/*IPlayer *player = GetOwner()->GetPlayer();
 	if (state.driver_style == STYLE_DRAG) {
 		suspension_yaw_control_limit = 0.1f;
 	} else if (player) {
@@ -1101,7 +1113,7 @@ void SuspensionRacerMW::TuneWheelParams(State &state) {
 				suspension_yaw_control_limit += 2.5f;
 			}
 		}
-	}
+	}*/
 
 	float max_slip = 0.0f;
 	int max_slip_wheel = 0;
@@ -1112,6 +1124,10 @@ void SuspensionRacerMW::TuneWheelParams(State &state) {
 		if (state.gas_input > 0.8f && state.brake_input > 0.5f && UMath::Abs(speedmph) < 10.0f && IsDriveWheel(i)) {
 			mTires[i]->SetBrake(UMath::Abs(speedmph) * 0.05f);
 		} else {
+			// prevent handbrake and rear brakes applying at the same time
+			if (ebrake > 0.0f) {
+				brake_biased[1] *= 1.0f - ebrake;
+			}
 			mTires[i]->SetBrake(brake_biased[i >> 1]);
 		}
 
@@ -1151,13 +1167,13 @@ void SuspensionRacerMW::TuneWheelParams(State &state) {
 			mTires[i]->SetTractionCircle(circle);
 		}
 		// traction is increased by perfect shifts in drag races and also by engaging the nitrous
-		mTires[i]->ScaleTractionBoost(state.nos_boost * state.shift_boost);
+		mTires[i]->ScaleTractionBoost(UMath::Sqrt(state.nos_boost) * state.shift_boost);
 
 		// popped tires are permanently braking and have reduced traction
 		if ((1 << i) & state.blown_tires) {
 			mTires[i]->SetEBrake(0.0f);
-			mTires[i]->SetBrake(1.0f);
-			mTires[i]->ScaleTractionBoost(0.3f);
+			mTires[i]->SetBrake(0.5f);
+			mTires[i]->ScaleTractionBoost(0.5f);
 		}
 
 		// find the highest slip of all tires for the burnout/fishtailing state
@@ -1168,7 +1184,8 @@ void SuspensionRacerMW::TuneWheelParams(State &state) {
 	}
 
 	// burnout state only applies when in first gear and the throttle is fully pressed outside of drag events
-	if (state.driver_style != STYLE_DRAG && state.gear == G_FIRST && state.gas_input >= 1.0f) {
+	//if (state.driver_style != STYLE_DRAG && state.gear == G_FIRST && state.gas_input >= 1.0f) {
+	if (state.gas_input >= 0.1f) { // use burnout to reduce grip of slipping wheels
 		mBurnOut.Update(state.time, MPS2MPH(state.local_vel.z), max_slip, max_slip_wheel, state.slipangle);
 	} else {
 		mBurnOut.Reset();
@@ -1256,11 +1273,12 @@ void SuspensionRacerMW::DoDriveForces(State &state) {
 
 			bool locked_diff = false;
 			if ((mBurnOut.GetState() & 1) != 0) {
-				traction_boost[1] = mBurnOut.GetTraction();
+				// don't allow burnout to reduce grip twice
+				//traction_boost[1] = mBurnOut.GetTraction();
 				diff.bias = mBurnOut.GetTraction() * 0.5f;
 				locked_diff = true;
 			} else if ((mBurnOut.GetState() & 2) != 0) {
-				traction_boost[0] = mBurnOut.GetTraction();
+				//traction_boost[0] = mBurnOut.GetTraction();
 				diff.bias = 1.0f - mBurnOut.GetTraction() * 0.5f;
 				locked_diff = true;
 			} else {

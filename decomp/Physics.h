@@ -10,7 +10,8 @@ inline unsigned int UTIL_InterprolateIndex(unsigned int last_index, float value,
 namespace Physics {
 	namespace Info {
 		float AerodynamicDownforce(MWCarTuning* pThis, const float speed) {
-			return speed * 2 * pThis->AERO_COEFFICIENT * 1000.0f;
+			//return speed * 2 * pThis->AERO_COEFFICIENT * 1000.0f;
+			return UMath::Pow(speed, 2.0f) * pThis->AERO_COEFFICIENT * 18.0f; //! 1.8 instead of 1.2 air density
 		}
 
 		enum eInductionType {

@@ -699,19 +699,20 @@ void SuspensionSimpleMW::OnTaskSimulate(float dT) {
 	if (mSleepTime > 3.0 && DoSleep(state) == SS_ALL) return;
 
 	float max_slip = ComputeMaxSlip(state);
-	float grip_scale = ComputeLateralGripScale(state);
-	float traction_scale = ComputeTractionScale(state);
+	float grip_scale = 1.0f; //ComputeLateralGripScale(state);
+	float traction_scale = 1.0f; //ComputeTractionScale(state);
 	for (unsigned int i = 0; i < 4; ++i) {
 		mTires[i]->BeginFrame(max_slip, grip_scale, traction_scale);
 	}
 
 	float drag_pct = 1.0f;
 	float aero_pct = 1.0f;
+	float pitch = 0.0f;
 	if (mCheater) {
 		drag_pct = ((mCheater->GetCatchupCheat() * -1.0) + 1.0);
 		aero_pct = ((mCheater->GetCatchupCheat() * 0.5) + 1.0);
 	}
-	DoAerodynamics(state, drag_pct, aero_pct, GetWheel(0).GetLocalArm().z, GetWheel(2).GetLocalArm().z, nullptr);
+	DoAerodynamics(state, drag_pct, aero_pct, GetWheel(0).GetLocalArm().z, GetWheel(2).GetLocalArm().z, nullptr, pitch);
 	DoDriveForces(state);
 	DoWheelForces(state);
 
