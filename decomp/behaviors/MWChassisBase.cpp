@@ -88,10 +88,11 @@ float ChassisMW::CalculateUndersteerFactor() {
 }
 
 Mps ChassisMW::ComputeMaxSlip(const ChassisMW::State &state) {
-	float ramp = UMath::Ramp(state.speed, 21.0f, 71.0f) * 0.5f;
+	float ramp = UMath::Ramp(state.speed, 21.0f, 71.0f) * 0.3f;
 	float result = ramp + 0.2f; // reduce max slip to break traction easier
-	if (state.gear == G_REVERSE)
+	if (state.gear == G_REVERSE) {
 		result = 1.0f;
+	}
 	return result;
 }
 

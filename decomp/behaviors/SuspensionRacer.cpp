@@ -338,7 +338,7 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 			mLongitudeForce /= dynamicfriction;
 		}
 		// ensure grip is reduced while traction is broken
-		mLongitudeForce = UMath::Limit(mLongitudeForce, GetTotalTorque() / mRadius * (dynamicgrip_spec / staticgrip_spec));
+		mLongitudeForce = UMath::Limit(mLongitudeForce, GetTotalTorque() / mRadius * UMath::Max((dynamicgrip_spec / staticgrip_spec), mTraction));
 	} else {
 		mBrakeLocked = false;
 		mLongitudeForce = GetTotalTorque() / mRadius;
@@ -377,7 +377,8 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 		mTraction = ratio;
 		mLateralForce *= ratio;
 		mLongitudeForce *= ratio;
-		max_slip = (ratio * ratio) * max_slip;
+		//max_slip = (ratio * ratio) * max_slip;
+		max_slip *= (1.0f - ratio) + 1.0f; // raise slip tolerance of overloaded tire
 	} else if (use_ellipse) {
 		mLongitudeForce *= InvTireForceEllipseRatio;
 	}
@@ -861,7 +862,7 @@ void SuspensionRacerMW::Burnout::Update(float dT, float speedmph, float max_slip
 	else if (speedmph < BurnOutMaxSpeed) {
 		const float friction_mult = 1.4f;
 		// these conditions were split, there was probably some debug stuff here
-		if (max_slip > 0.2f) {
+		if (max_slip > 0.5f) {
 			float burnout_coeff;
 			BurnoutFrictionTable.GetValue(&burnout_coeff, max_slip);
 			SetTraction(burnout_coeff / friction_mult);
@@ -1362,7 +1363,7 @@ void SuspensionRacerMW::DoWheelForces(State &state) {
 		sway_specs[i] = LBIN2NM(mMWAttributes->SWAYBAR_STIFFNESS.At(i));
 		travel_specs[i] = INCH2METERS(mMWAttributes->TRAVEL.At(i));
 		rideheight_specs[i] = INCH2METERS(mMWAttributes->RIDE_HEIGHT.At(i) + ride_extra);
-		progression[i] = mMWAttributes->SPRING_PROGRESSION.At(i);
+		progression[i] = mMWAttributes->SPRING_PROGRESSION.At(i) * 0.1; //! TEMP
 	}
 
 	float sway_stiffness[4];
