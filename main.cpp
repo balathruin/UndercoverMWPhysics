@@ -56,6 +56,7 @@ public:
 bool bAffectOpponents = false;
 bool bAffectCops = false;
 bool bRevLimiter = true;
+bool bArcadeDownforce = true;
 
 auto cartuning_LookupKey = (uint32_t(__thiscall*)(Attrib::Gen::car_tuning*, const ISimable*, int))0x721E20;
 auto ctor_cartuning = (void(__thiscall*)(Attrib::Gen::car_tuning*, uint32_t))0x721CB0;
@@ -422,6 +423,7 @@ BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID) {
 				bAffectOpponents = config["mw_physics_opponents"].value_or(bAffectOpponents);
 				bAffectCops = config["mw_physics_cops"].value_or(bAffectCops);
 				bRevLimiter = config["rev_limiter"].value_or(bRevLimiter);
+				bArcadeDownforce = config["arcade_downforce"].value_or(bArcadeDownforce);
 			}
 
 			WriteLog("Mod initialized");
