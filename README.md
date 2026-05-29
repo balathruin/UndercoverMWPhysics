@@ -18,11 +18,24 @@ I have recently discovered that the latter project uses AI, so while this mod wa
 - Every car that exists in Most Wanted uses the actual data from Most Wanted's VLT nodes, and cars that don't exist in Most Wanted use either Carbon's values or a similar car's values from either game
 - Perfect starts have been re-added, though there's no visual indication of the target RPM so you'll have to go by feel
 
+### This fork
+
+- New performance tuning options for vanilla/Reformed and UCE
+- Many small adjustments to grip calculations, resolving some cases where it feels or is infinite
+- Support for dynamic weight and aero distribution, downforce and drag
+- Downshift protection, adjustable Ackermann, static and dynamic toe angle (bump steer)
+
 ## Useful info
 
-- Fine tuning has been redone, the options might change car performance in different ways than before, and the following tunings do not affect anything anymore: Engine, Drivetrain, Suspension
+- Fine tuning has been redone, the options might change car performance in different ways than before, ~~and the following tunings do not affect anything anymore: Engine, Drivetrain, Suspension~~
 - FOR DEVELOPERS: Almost all VLT values have been replaced! For editing car handling, edit the files in `CarDataDump` instead, except for these values: `ASPECT_RATIO`, `FRONT_AXLE`, `MASS`, `RIM_SIZE`, `SECTION_WIDTH`, `TRACK_WIDTH`, `WHEEL_BASE`
 - Manual transmission no longer gives you an advantage
+
+### Further changes
+
+- Disabled attributes: SPEED_LIMITER, OPTIMAL_SHIFT, TORQUE_CONVERTER
+- New attributes: BUMP_STEER, FRONT_WEIGHT_SHIFT, ACKERMANN, TOE
+- Expected value range changed: AERO_COEFFICIENT, GRIP_SCALE
 
 ## Known issues
 

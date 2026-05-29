@@ -245,7 +245,7 @@ class EngineRacer : public VehicleBehavior {
 	bool UseRevLimiter() const {
 		return bRevLimiter;
 	}
-	void DoECU();
+	//void DoECU();
 	float DoThrottle(float dT);
 	void DoInduction(const Physics::Tunings *tunings, float dT);
 	float DoNos(const Physics::Tunings *tunings, float dT, bool engaged);

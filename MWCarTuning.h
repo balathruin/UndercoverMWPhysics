@@ -14,78 +14,82 @@ enum eTuning {
 struct MWCarTuning {
 	std::string carName;
 
-	// chassis
-	AxlePair SHOCK_DIGRESSION;
-	AxlePair SPRING_PROGRESSION;
-	AxlePair TRAVEL;
-	AxlePair RIDE_HEIGHT;
-	AxlePair SHOCK_EXT_STIFFNESS;
-	AxlePair SHOCK_STIFFNESS;
-	AxlePair SPRING_STIFFNESS;
-	AxlePair SHOCK_VALVING;
-	AxlePair SWAYBAR_STIFFNESS;
-	float ROLL_CENTER;
-	float SHOCK_BLOWOUT;
-	float AERO_CG;
-	float RENDER_MOTION;
-	float AERO_COEFFICIENT;
-	float FRONT_WEIGHT_BIAS;
-	float DRAG_COEFFICIENT;
-
 	// brakes
 	AxlePair BRAKE_LOCK;
 	AxlePair BRAKES;
 	float EBRAKE;
 
-	// tires
-	std::vector<float> YAW_CONTROL;
-	AxlePair GRIP_SCALE;
-	AxlePair DYNAMIC_GRIP;
-	AxlePair STATIC_GRIP;
-	float STEERING;
-	float YAW_SPEED;
-
-	// transmission
-	std::vector<float> GEAR_RATIO;
-	float DIFFERENTIAL[3];
-	float GEAR_EFFICIENCY[10];
-	float TORQUE_CONVERTER;
-	float TORQUE_SPLIT;
-	float CLUTCH_SLIP;
-	float OPTIMAL_SHIFT;
-	float SHIFT_SPEED;
-	float FINAL_GEAR;
+	// chassis
+	float AERO_CG;
+	float AERO_COEFFICIENT;
+	AxlePair BUMP_STEER;
+	float DRAG_COEFFICIENT;
+	float FRONT_WEIGHT_BIAS;
+	float FRONT_WEIGHT_SHIFT;
+	float RENDER_MOTION;
+	AxlePair RIDE_HEIGHT;
+	float ROLL_CENTER;
+	float SHOCK_BLOWOUT;
+	AxlePair SHOCK_DIGRESSION;
+	AxlePair SHOCK_EXT_STIFFNESS;
+	AxlePair SHOCK_STIFFNESS;
+	AxlePair SHOCK_VALVING;
+	AxlePair SPRING_PROGRESSION;
+	AxlePair SPRING_STIFFNESS;
+	AxlePair SWAYBAR_STIFFNESS;
+	AxlePair TRAVEL;
 
 	// engine
-	std::vector<float> TORQUE;
-	float SPEED_LIMITER[2];
 	std::vector<float> ENGINE_BRAKING;
 	float FLYWHEEL_MASS;
+	float IDLE;
 	float MAX_RPM;
 	float RED_LINE;
-	float IDLE;
+	//float SPEED_LIMITER[2];
+	std::vector<float> TORQUE;
 
 	// induction
-	float LOW_BOOST;
-	float SPOOL_TIME_DOWN;
-	float VACUUM;
-	float SPOOL;
-	float SPOOL_TIME_UP;
-	float PSI;
 	float HIGH_BOOST;
+	float LOW_BOOST;
+	float PSI;
+	float SPOOL;
+	float SPOOL_TIME_DOWN;
+	float SPOOL_TIME_UP;
+	float VACUUM;
 
 	// nos
-	float NOS_DISENGAGE = 2.0;
-	float TORQUE_BOOST = 0.9;
 	float FLOW_RATE = 3.0;
-	float RECHARGE_MIN = 50;
 	float NOS_CAPACITY = 5.0;
+	float NOS_DISENGAGE = 2.0;
 	float RECHARGE_MAX = 30;
 	float RECHARGE_MAX_SPEED = 100;
+	float RECHARGE_MIN = 50;
 	float RECHARGE_MIN_SPEED = 50;
+	float TORQUE_BOOST = 0.9;
 
 	// pvehicle
 	float TENSOR_SCALE[3];
+
+	// tires
+	float ACKERMANN;
+	AxlePair DYNAMIC_GRIP;
+	AxlePair GRIP_SCALE;
+	AxlePair STATIC_GRIP;
+	float STEERING;
+	AxlePair TOE;
+	std::vector<float> YAW_CONTROL;
+	float YAW_SPEED;
+
+	// transmission
+	float CLUTCH_SLIP;
+	float DIFFERENTIAL[3];
+	float FINAL_GEAR;
+	float GEAR_EFFICIENCY[10];
+	std::vector<float> GEAR_RATIO;
+	//float OPTIMAL_SHIFT;
+	float SHIFT_SPEED;
+	//float TORQUE_CONVERTER;
+	float TORQUE_SPLIT;
 
 	static void ReadDynamicArray(toml::table& config, std::vector<float>& out, const char* category, const char* name) {
 		out.clear();
@@ -123,8 +127,11 @@ MWCarTuning* LoadCarTuningFromFile(std::string configCarName) {
 	// chassis
 	tmp.AERO_CG = config["chassis"]["AERO_CG"].value_or(50.0);
 	tmp.AERO_COEFFICIENT = config["chassis"]["AERO_COEFFICIENT"].value_or(0.0);
+	tmp.BUMP_STEER.Front = config["chassis"]["BUMP_STEER"][0].value_or(-2.0);
+	tmp.BUMP_STEER.Rear = config["chassis"]["BUMP_STEER"][1].value_or(2.0);
 	tmp.DRAG_COEFFICIENT = config["chassis"]["DRAG_COEFFICIENT"].value_or(0.0);
 	tmp.FRONT_WEIGHT_BIAS = config["chassis"]["FRONT_WEIGHT_BIAS"].value_or(50.0);
+	tmp.FRONT_WEIGHT_SHIFT = config["chassis"]["FRONT_WEIGHT_SHIFT"].value_or(0.0);
 	tmp.RENDER_MOTION = config["chassis"]["RENDER_MOTION"].value_or(1.0);
 	tmp.RIDE_HEIGHT.Front = config["chassis"]["RIDE_HEIGHT"][0].value_or(10.0);
 	tmp.RIDE_HEIGHT.Rear = config["chassis"]["RIDE_HEIGHT"][1].value_or(10.0);
@@ -147,32 +154,10 @@ MWCarTuning* LoadCarTuningFromFile(std::string configCarName) {
 	tmp.TRAVEL.Front = config["chassis"]["TRAVEL"][0].value_or(5.0);
 	tmp.TRAVEL.Rear = config["chassis"]["TRAVEL"][1].value_or(5.0);
 
-	// tires
-	tmp.DYNAMIC_GRIP.Front = config["tires"]["DYNAMIC_GRIP"][0].value_or(1.0);
-	tmp.DYNAMIC_GRIP.Rear = config["tires"]["DYNAMIC_GRIP"][1].value_or(1.0);
-	tmp.GRIP_SCALE.Front = config["tires"]["GRIP_SCALE"][0].value_or(1.0);
-	tmp.GRIP_SCALE.Rear = config["tires"]["GRIP_SCALE"][1].value_or(1.0);
-	tmp.STATIC_GRIP.Front = config["tires"]["STATIC_GRIP"][0].value_or(2.0);
-	tmp.STATIC_GRIP.Rear = config["tires"]["STATIC_GRIP"][1].value_or(2.0);
-	tmp.STEERING = config["tires"]["STEERING"].value_or(1.0);
-	tmp.ReadDynamicArray(config, tmp.YAW_CONTROL, "tires", "YAW_CONTROL");
-	tmp.YAW_SPEED = config["tires"]["YAW_SPEED"].value_or(1.0);
-
-	// transmission
-	tmp.ReadDynamicArray(config, tmp.GEAR_RATIO, "transmission", "GEAR_RATIO");
-	for (int i = 0; i < 3; i++) { tmp.DIFFERENTIAL[i] = config["transmission"]["DIFFERENTIAL"][i].value_or(1.0); }
-	for (int i = 0; i < 10; i++) { tmp.GEAR_EFFICIENCY[i] = config["transmission"]["GEAR_EFFICIENCY"][i].value_or(1.0); }
-	tmp.TORQUE_CONVERTER = config["transmission"]["TORQUE_CONVERTER"].value_or(0.5);
-	tmp.TORQUE_SPLIT = config["transmission"]["TORQUE_SPLIT"].value_or(0.5);
-	tmp.CLUTCH_SLIP = config["transmission"]["CLUTCH_SLIP"].value_or(0.5);
-	tmp.OPTIMAL_SHIFT = config["transmission"]["OPTIMAL_SHIFT"].value_or(0.5);
-	tmp.SHIFT_SPEED = config["transmission"]["SHIFT_SPEED"].value_or(0.5);
-	tmp.FINAL_GEAR = config["transmission"]["FINAL_GEAR"].value_or(0.5);
-
 	// engine
 	tmp.ReadDynamicArray(config, tmp.TORQUE, "engine", "TORQUE");
-	tmp.SPEED_LIMITER[0] = config["engine"]["SPEED_LIMITER"][0].value_or(0.0);
-	tmp.SPEED_LIMITER[1] = config["engine"]["SPEED_LIMITER"][1].value_or(0.0);
+	/*tmp.SPEED_LIMITER[0] = config["engine"]["SPEED_LIMITER"][0].value_or(0.0);
+	tmp.SPEED_LIMITER[1] = config["engine"]["SPEED_LIMITER"][1].value_or(0.0);*/
 	tmp.ReadDynamicArray(config, tmp.ENGINE_BRAKING, "engine", "ENGINE_BRAKING");
 	tmp.FLYWHEEL_MASS = config["engine"]["FLYWHEEL_MASS"].value_or(0.0);
 	tmp.MAX_RPM = config["engine"]["MAX_RPM"].value_or(0.0);
@@ -196,6 +181,31 @@ MWCarTuning* LoadCarTuningFromFile(std::string configCarName) {
 		tmp.TENSOR_SCALE[0] = 1.0;
 		WriteLog(std::format("TENSOR_SCALE missing for {}", configCarName));
 	}
+
+	// tires
+	tmp.ACKERMANN = config["tires"]["ACKERMANN"].value_or(1.0);
+	tmp.DYNAMIC_GRIP.Front = config["tires"]["DYNAMIC_GRIP"][0].value_or(1.0);
+	tmp.DYNAMIC_GRIP.Rear = config["tires"]["DYNAMIC_GRIP"][1].value_or(1.0);
+	tmp.GRIP_SCALE.Front = config["tires"]["GRIP_SCALE"][0].value_or(1.0);
+	tmp.GRIP_SCALE.Rear = config["tires"]["GRIP_SCALE"][1].value_or(1.0);
+	tmp.STATIC_GRIP.Front = config["tires"]["STATIC_GRIP"][0].value_or(2.0);
+	tmp.STATIC_GRIP.Rear = config["tires"]["STATIC_GRIP"][1].value_or(2.0);
+	tmp.STEERING = config["tires"]["STEERING"].value_or(1.0);
+	tmp.TOE.Front = config["tires"]["TOE"][0].value_or(0.0);
+	tmp.TOE.Rear = config["tires"]["TOE"][1].value_or(0.0);
+	tmp.ReadDynamicArray(config, tmp.YAW_CONTROL, "tires", "YAW_CONTROL");
+	tmp.YAW_SPEED = config["tires"]["YAW_SPEED"].value_or(1.0);
+
+	// transmission
+	tmp.ReadDynamicArray(config, tmp.GEAR_RATIO, "transmission", "GEAR_RATIO");
+	for (int i = 0; i < 3; i++) { tmp.DIFFERENTIAL[i] = config["transmission"]["DIFFERENTIAL"][i].value_or(1.0); }
+	for (int i = 0; i < 10; i++) { tmp.GEAR_EFFICIENCY[i] = config["transmission"]["GEAR_EFFICIENCY"][i].value_or(1.0); }
+	//tmp.TORQUE_CONVERTER = config["transmission"]["TORQUE_CONVERTER"].value_or(0.5);
+	tmp.TORQUE_SPLIT = config["transmission"]["TORQUE_SPLIT"].value_or(0.5);
+	tmp.CLUTCH_SLIP = config["transmission"]["CLUTCH_SLIP"].value_or(0.5);
+	//tmp.OPTIMAL_SHIFT = config["transmission"]["OPTIMAL_SHIFT"].value_or(0.5);
+	tmp.SHIFT_SPEED = config["transmission"]["SHIFT_SPEED"].value_or(0.5);
+	tmp.FINAL_GEAR = config["transmission"]["FINAL_GEAR"].value_or(0.5);
 
 	aCarTunings.push_back(tmp);
 	return &aCarTunings[aCarTunings.size()-1];
@@ -268,8 +278,11 @@ void GetLerpedCarTuning(MWCarTuning& tmp, const std::string& model, float brake,
 	// chassis
 	TUNED_VALUE(AERO_CG, suspension);
 	TUNED_VALUE(AERO_COEFFICIENT, suspension);
+	TUNED_VALUE(BUMP_STEER.Front, suspension);
+	TUNED_VALUE(BUMP_STEER.Rear, suspension);
 	TUNED_VALUE(DRAG_COEFFICIENT, suspension);
 	TUNED_VALUE(FRONT_WEIGHT_BIAS, suspension);
+	TUNED_VALUE(FRONT_WEIGHT_SHIFT, suspension);
 	TUNED_VALUE(RENDER_MOTION, suspension);
 	TUNED_VALUE(RIDE_HEIGHT.Front, suspension);
 	TUNED_VALUE(RIDE_HEIGHT.Rear, suspension);
@@ -292,42 +305,12 @@ void GetLerpedCarTuning(MWCarTuning& tmp, const std::string& model, float brake,
 	TUNED_VALUE(TRAVEL.Front, suspension);
 	TUNED_VALUE(TRAVEL.Rear, suspension);
 
-	// tires
-	TUNED_VALUE(DYNAMIC_GRIP.Front, tire);
-	TUNED_VALUE(DYNAMIC_GRIP.Rear, tire);
-	TUNED_VALUE(GRIP_SCALE.Front, tire);
-	TUNED_VALUE(GRIP_SCALE.Rear, tire);
-	TUNED_VALUE(STATIC_GRIP.Front, tire);
-	TUNED_VALUE(STATIC_GRIP.Rear, tire);
-	TUNED_VALUE(STEERING, tire);
-	for (int i = 0; i < tmp.YAW_CONTROL.size(); i++) {
-		TUNED_VALUE(YAW_CONTROL[i], tire);
-	}
-	TUNED_VALUE(YAW_SPEED, tire);
-
-	// transmission
-	for (int i = 0; i < tmp.GEAR_RATIO.size(); i++) {
-		TUNED_VALUE(GEAR_RATIO[i], drivetrain);
-	}
-	for (int i = 0; i < 3; i++) {
-		TUNED_VALUE(DIFFERENTIAL[i], drivetrain);
-	}
-	for (int i = 0; i < 10; i++) {
-		TUNED_VALUE(GEAR_EFFICIENCY[i], drivetrain);
-	}
-	TUNED_VALUE(TORQUE_CONVERTER, drivetrain);
-	TUNED_VALUE(TORQUE_SPLIT, drivetrain);
-	TUNED_VALUE(CLUTCH_SLIP, drivetrain);
-	TUNED_VALUE(OPTIMAL_SHIFT, drivetrain);
-	TUNED_VALUE(SHIFT_SPEED, drivetrain);
-	TUNED_VALUE(FINAL_GEAR, drivetrain);
-
 	// engine
 	for (int i = 0; i < tmp.TORQUE.size(); i++) {
 		TUNED_VALUE(TORQUE[i], engine);
 	}
-	TUNED_VALUE(SPEED_LIMITER[0], engine);
-	TUNED_VALUE(SPEED_LIMITER[1], engine);
+	/*TUNED_VALUE(SPEED_LIMITER[0], engine);
+	TUNED_VALUE(SPEED_LIMITER[1], engine);*/
 	for (int i = 0; i < tmp.ENGINE_BRAKING.size(); i++) {
 		TUNED_VALUE(ENGINE_BRAKING[i], engine);
 	}
@@ -336,7 +319,7 @@ void GetLerpedCarTuning(MWCarTuning& tmp, const std::string& model, float brake,
 	TUNED_VALUE(RED_LINE, engine);
 	TUNED_VALUE(IDLE, engine);
 
-	// nos
+	// nos TODO car specific support
 	if (nitro < 0.0) {
 		tmp.FLOW_RATE = 0.0;
 		tmp.NOS_CAPACITY = 40.0;
@@ -358,7 +341,7 @@ void GetLerpedCarTuning(MWCarTuning& tmp, const std::string& model, float brake,
 		tmp.TORQUE_BOOST = std::lerp(0.8, 0.9, nitro);
 	}
 
-	// induction
+	// induction TODO restore NA conversion
 	TUNED_VALUE(LOW_BOOST, induction);
 	TUNED_VALUE(SPOOL_TIME_DOWN, induction);
 	TUNED_VALUE(VACUUM, induction);
@@ -366,6 +349,39 @@ void GetLerpedCarTuning(MWCarTuning& tmp, const std::string& model, float brake,
 	TUNED_VALUE(SPOOL_TIME_UP, induction);
 	TUNED_VALUE(PSI, induction);
 	TUNED_VALUE(HIGH_BOOST, induction);
+
+	// tires
+	TUNED_VALUE(ACKERMANN, tire);
+	TUNED_VALUE(DYNAMIC_GRIP.Front, tire);
+	TUNED_VALUE(DYNAMIC_GRIP.Rear, tire);
+	TUNED_VALUE(GRIP_SCALE.Front, tire);
+	TUNED_VALUE(GRIP_SCALE.Rear, tire);
+	TUNED_VALUE(STATIC_GRIP.Front, tire);
+	TUNED_VALUE(STATIC_GRIP.Rear, tire);
+	TUNED_VALUE(STEERING, tire);
+	TUNED_VALUE(TOE.Front, tire);
+	TUNED_VALUE(TOE.Rear, tire);
+	for (int i = 0; i < tmp.YAW_CONTROL.size(); i++) {
+		TUNED_VALUE(YAW_CONTROL[i], tire);
+	}
+	TUNED_VALUE(YAW_SPEED, tire);
+
+	// transmission
+	for (int i = 0; i < tmp.GEAR_RATIO.size(); i++) {
+		TUNED_VALUE(GEAR_RATIO[i], drivetrain);
+	}
+	for (int i = 0; i < 3; i++) {
+		TUNED_VALUE(DIFFERENTIAL[i], drivetrain);
+	}
+	for (int i = 0; i < 10; i++) {
+		TUNED_VALUE(GEAR_EFFICIENCY[i], drivetrain);
+	}
+	//TUNED_VALUE(TORQUE_CONVERTER, drivetrain);
+	TUNED_VALUE(TORQUE_SPLIT, drivetrain);
+	TUNED_VALUE(CLUTCH_SLIP, drivetrain);
+	//TUNED_VALUE(OPTIMAL_SHIFT, drivetrain);
+	TUNED_VALUE(SHIFT_SPEED, drivetrain);
+	TUNED_VALUE(FINAL_GEAR, drivetrain);
 
 	while (tmp.GEAR_RATIO[tmp.GEAR_RATIO.size()-1] <= 0.35) { tmp.GEAR_RATIO.pop_back(); }
 }
@@ -376,15 +392,51 @@ float GetPhysicsTuningValue(float in, float max) {
 
 void GetLerpedCarTuning(MWCarTuning& out, const std::string& model, const VehicleCustomizations* cust) {
 	if (cust) {
-		// todo read available number of upgrade packages or check vehicle tier
-		float brake = UMath::Max(cust->InstalledParts[CARSLOTID_BRAKE_PACKAGE].kit_num / 3.0, 0.0);
-		float drivetrain = UMath::Max(cust->InstalledParts[CARSLOTID_DRIVETRAIN_PACKAGE].kit_num / 3.0, 0.0);
-		float engine = UMath::Max(cust->InstalledParts[CARSLOTID_ENGINE_PACKAGE].kit_num / 3.0, 0.0);
-		float induction = UMath::Max(cust->InstalledParts[CARSLOTID_FORCED_INDUCTION_PACKAGE].kit_num / 3.0, 0.0);
-		float nitro = cust->InstalledParts[CARSLOTID_NITROUS_PACKAGE].kit_num / 3.0;
-		float suspension = UMath::Max(cust->InstalledParts[CARSLOTID_SUSPENSION_PACKAGE].kit_num / 3.0, 0.0);
-		float tire = UMath::Max(cust->InstalledParts[CARSLOTID_TIRE_PACKAGE].kit_num / 3.0, 0.0);
+		float brake, drivetrain, engine, induction, nitro, suspension, tire;
+		auto tier1 = std::vector<const char*> { // TODO read from file
+			{"bug_vey_164_08"},
+			{"che_vet_z06_06"},
+			{"dod_vip_srt_08"},
+			{"for_gt_stk_06"},
+			{"koe_ccx_stk_06"},
+			{"lam_mur_lp_06"},
+			{"mcl_f1_stk_94"},
+			{"mer_slr_722_07"},
+			{"nis_gtr_r35_08"},
+			{"pag_zon_f_06"},
+			{"por_911_gt2_08"},
+			{"por_car_gt_05"}
+		};
+		for (const auto& vehicle : tier1) {
+			if (!strcmp(vehicle, model.c_str())) {
+				brake = UMath::Max((cust->InstalledParts[CARSLOTID_BRAKE_PACKAGE].kit_num - 1.0) * 0.5, 0.0);
+				drivetrain = UMath::Max((cust->InstalledParts[CARSLOTID_DRIVETRAIN_PACKAGE].kit_num - 1.0) * 0.5, 0.0);
+				engine = UMath::Max((cust->InstalledParts[CARSLOTID_ENGINE_PACKAGE].kit_num - 1.0) * 0.5, 0.0);
+				induction = UMath::Max((cust->InstalledParts[CARSLOTID_FORCED_INDUCTION_PACKAGE].kit_num - 1.0) * 0.5, 0.0);
+				nitro = (cust->InstalledParts[CARSLOTID_NITROUS_PACKAGE].kit_num - 1.0) / 2.0;
+				suspension = UMath::Max((cust->InstalledParts[CARSLOTID_SUSPENSION_PACKAGE].kit_num - 1.0) * 0.5, 0.0);
+				tire = UMath::Max((cust->InstalledParts[CARSLOTID_TIRE_PACKAGE].kit_num - 1.0) * 0.5, 0.0);
+				break;
+			} else {
+				brake = UMath::Max(cust->InstalledParts[CARSLOTID_BRAKE_PACKAGE].kit_num / 3.0, 0.0);
+				drivetrain = UMath::Max(cust->InstalledParts[CARSLOTID_DRIVETRAIN_PACKAGE].kit_num / 3.0, 0.0);
+				engine = UMath::Max(cust->InstalledParts[CARSLOTID_ENGINE_PACKAGE].kit_num / 3.0, 0.0);
+				induction = UMath::Max(cust->InstalledParts[CARSLOTID_FORCED_INDUCTION_PACKAGE].kit_num / 3.0, 0.0);
+				nitro = (cust->InstalledParts[CARSLOTID_NITROUS_PACKAGE].kit_num - 1.0) / 2.0;
+				suspension = UMath::Max(cust->InstalledParts[CARSLOTID_SUSPENSION_PACKAGE].kit_num / 3.0, 0.0);
+				tire = UMath::Max(cust->InstalledParts[CARSLOTID_TIRE_PACKAGE].kit_num / 3.0, 0.0);
+			}
+		}
 		GetLerpedCarTuning(out, model, brake, drivetrain, engine, induction, nitro, suspension, tire);
+
+		//! TEMP | backwards compatibility
+		if (out.AERO_COEFFICIENT < 0.5) {
+			out.AERO_COEFFICIENT *= 2 / 0.12;
+		}
+		if (out.GRIP_SCALE.Front <= 1.35 || out.GRIP_SCALE.Rear <= 1.35) {
+			out.GRIP_SCALE.Front *= 1.75;
+			out.GRIP_SCALE.Rear *= 1.75;
+		}
 
 		out.FINAL_GEAR *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_GEAR_RATIO_FINAL], 0.1);
 		out.STATIC_GRIP.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[REFORMED_SWAYBAR_STIFFNESS], -0.1);

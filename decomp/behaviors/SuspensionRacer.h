@@ -186,7 +186,7 @@ class SuspensionRacerMW : public ChassisMW {
 	void DoDriveForces(ChassisMW::State &state);
 	float DoHumanSteering(ChassisMW::State &state);
 	float DoAISteering(ChassisMW::State &state);
-	void DoSteering(ChassisMW::State &state, UMath::Vector3 &right, UMath::Vector3 &left);
+	void DoSteering(ChassisMW::State &state, UMath::Vector3 &right, UMath::Vector3 &left, UMath::Vector3 &r_right, UMath::Vector3 &r_left);
 	void DoAerobatics(ChassisMW::State &state);
 	float CalcYawControlLimit(float speed);
 

@@ -13,7 +13,7 @@ void* NewEngineRacerVTable[] = {
 		(void*)&EngineRacer::IsShiftingGear,
 		(void*)&EngineRacer::OnGearChange,
 		(void*)&EngineRacer::UseRevLimiter,
-		(void*)&EngineRacer::DoECU,
+		nullptr, // (void*)&EngineRacer::DoECU,
 		(void*)&EngineRacer::DoThrottle,
 		nullptr, //(void*)&EngineRacer::DoClutch,
 		nullptr, //(void*)&EngineRacer::DoClutchTorque,
@@ -405,7 +405,14 @@ ShiftStatus EngineRacer::OnGearChange(GearID gear) {
 
 	if (gear >= GetNumGearRatios())
 		return SHIFT_STATUS_NONE;
-	// new gear can't be the same as the old one
+
+	// block downshift if the engine would overrev
+	// this prevents downshift tech (grip boost, instant braking)
+	if (mGear != G_FIRST && GetGearRatio(gear) > 0.0f && UMath::Max(mRPM,
+		GuessRPM(GetVehicle()->GetAbsoluteSpeed(), (GearID)(gear + 1))) * GetGearRatio(gear) /
+		(mMWInfo->MAX_RPM * GetGearRatio(mGear)) > 1.0f && gear < mGear) {
+		return SHIFT_STATUS_NONE;
+	} // new gear can't be the same as the old one
 	if (gear != mGear && gear >= G_REVERSE) {
 		if (gear < mGear) {
 			mGearShiftTimer = GetShiftDelay(gear, false) * 0.25f;
@@ -430,18 +437,18 @@ bool EngineRacer::DoGearChange(GearID gear, bool automatic) {
 		return false;
 	}
 
-	GearID previous = (GearID)mGear;
+	//GearID previous = (GearID)mGear;
 	ShiftStatus status = OnGearChange(gear);
 	if (status != SHIFT_STATUS_NONE) {
 		mShiftStatus = status;
 		mShiftPotential = SHIFT_POTENTIAL_NONE;
-		ISimable *owner = GetOwner();
+		//ISimable *owner = GetOwner();
 
 		// todo
-		if (owner->IsPlayer()) {
+		//if (owner->IsPlayer()) {
 			// dispatch shift event
 			//new EPlayerShift(owner->GetInstanceHandle(), status, automatic, previous, gear);
-		}
+		//}
 		return true;
 	}
 
@@ -536,13 +543,14 @@ float EngineRacer::CalcSpeedometer(float rpm, unsigned int gear) const {
 float EngineRacer::GetMaxSpeedometer() const {
 	unsigned int num_ratios = GetNumGearRatios();
 	if (num_ratios > 0) {
-		float limiter = MPH2MPS(mMWInfo->SPEED_LIMITER[0]);
+		//float limiter = MPH2MPS(mMWInfo->SPEED_LIMITER[0]);
 		float max_speedometer = CalcSpeedometer(mMWInfo->RED_LINE, num_ratios - 1);
-		if (limiter > 0.0f) {
+		/*if (limiter > 0.0f) {
 			return UMath::Min(max_speedometer, limiter);
 		} else {
 			return max_speedometer;
-		}
+		}*/
+		return max_speedometer;
 	} else {
 		return 0.0f;
 	}
@@ -600,7 +608,7 @@ float Engine_SmoothRPM(bool is_shifting, GearID gear, float dT, float old_rpm, f
 }
 
 // Credits: Brawltendo
-void EngineRacer::DoECU() {
+/*void EngineRacer::DoECU() {
 	if (GetGear() <= G_NEUTRAL) {
 		return;
 	}
@@ -617,7 +625,7 @@ void EngineRacer::DoECU() {
 			}
 		}
 	}
-}
+}*/
 
 bool Tweak_InfiniteNOS = false;
 static const float Tweak_MinSpeedForNosMPH = 10.0f;
@@ -768,7 +776,7 @@ void EngineRacer::DoShifting(float dT) {
 	}
 }
 
-static const bool Tweak_EnableTorqueConverter = true;
+//static const bool Tweak_EnableTorqueConverter = true;
 static const float Tweak_ClutchEngageTime = 0.25f;
 static const float Tweak_1stGearClutchEngageTime = 0.05f;
 static const float Tweak_CheaterTorqueBoost = 0.5f;
@@ -801,7 +809,7 @@ void EngineRacer::OnTaskSimulate(float dT) {
 	bool is_staging = GetVehicle()->IsStaging();
 	mThrottle = DoThrottle(dT);
 	mNOSBoost = DoNos(tunings, dT, iinput->GetControlNOS());
-	DoECU();
+	//DoECU();
 	DoInduction(tunings, dT);
 	DoShifting(dT);
 
@@ -820,14 +828,14 @@ void EngineRacer::OnTaskSimulate(float dT) {
 	float total_gear_ratio = GetGearRatio(mGear) * GetFinalGear() * gear_direction;
 	float rpm = RPS2RPM(mAngularVelocity);
 
-	float torque_converter = mMWInfo->TORQUE_CONVERTER;
+	/*float torque_converter = mMWInfo->TORQUE_CONVERTER;
 	if (Tweak_EnableTorqueConverter && torque_converter > 0.0f) {
 		float converter_ratio = torque_converter * mThrottle * (1.0f - UMath::Ramp(rpm, mMWInfo->IDLE, mPeakTorqueRPM));
 		if (IsGearChanging()) {
 			converter_ratio *= clutch_ratio;
 		}
 		total_gear_ratio *= 1.0f + converter_ratio;
-	}
+	}*/
 
 	if (total_gear_ratio == 0.0f && mGear != G_NEUTRAL) {
 		return;
@@ -871,7 +879,8 @@ void EngineRacer::OnTaskSimulate(float dT) {
 		braking_torque = -braking_torque;
 	}
 
-	float total_engine_torque = engine_torque * mThrottle + braking_torque * (1.0f - mThrottle);
+	// less linear throttle mapping, adjust by changing the exponent (0-1)
+	float total_engine_torque = engine_torque * UMath::Pow(mThrottle, 0.75f) + braking_torque * (1.0f - mThrottle);
 	float drive_torque = 0.0f;
 	float road_torque = overrev_torque;
 	mEngineBraking = total_engine_torque < 0.0f;

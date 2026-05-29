@@ -10,8 +10,7 @@ inline unsigned int UTIL_InterprolateIndex(unsigned int last_index, float value,
 namespace Physics {
 	namespace Info {
 		float AerodynamicDownforce(MWCarTuning* pThis, const float speed) {
-			//return speed * 2 * pThis->AERO_COEFFICIENT * 1000.0f;
-			return UMath::Pow(speed, 2.0f) * pThis->AERO_COEFFICIENT * 18.0f; //! 1.8 instead of 1.2 air density
+			return speed * pThis->AERO_COEFFICIENT * 120.0f; // tonnes at 300km/h
 		}
 
 		enum eInductionType {
@@ -26,7 +25,7 @@ namespace Physics {
 			if (loaded)
 				scale = 1.f;
 			else
-				scale = 0.35f;
+				scale = 0.5f;
 			return scale * (mw->FLYWHEEL_MASS * 0.025f + 0.25f);
 		}
 
@@ -100,10 +99,10 @@ namespace Physics {
 				speed = RPM2RPS(clutch_rpm) * avg_wheel_radius;
 			}
 
-			float limiter = MPH2MPS(mw->SPEED_LIMITER[0]);
+			/*float limiter = MPH2MPS(mw->SPEED_LIMITER[0]);
 			if (limiter > 0.0f) {
 				speed = UMath::Min(speed, limiter);
-			}
+			}*/
 
 			return speed;
 		}

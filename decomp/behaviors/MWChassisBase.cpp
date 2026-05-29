@@ -88,7 +88,7 @@ float ChassisMW::CalculateUndersteerFactor() {
 }
 
 Mps ChassisMW::ComputeMaxSlip(const ChassisMW::State &state) {
-	float ramp = UMath::Ramp(state.speed, 21.0f, 71.0f) * 0.3f;
+	float ramp = UMath::Ramp(state.speed, 21.0f, 89.0f) * 0.8f;
 	float result = ramp + 0.2f; // reduce max slip to break traction easier
 	if (state.gear == G_REVERSE) {
 		result = 1.0f;
@@ -238,11 +238,18 @@ void ChassisMW::OnBehaviorChange(const UCrc32 &mechanic) {
 }
 
 // Credits: Brawltendo
-void ChassisMW::ComputeAckerman(const float steering, const ChassisMW::State &state, UMath::Vector4 *left, UMath::Vector4 *right) {
+void ChassisMW::ComputeAckerman(const float steering, const ChassisMW::State &state, UMath::Vector4 *left,
+                                UMath::Vector4 *right, UMath::Vector4 *r_left, UMath::Vector4 *r_right) {
 	int going_right = true;
 	float wheelbase = mAttributes.GetLayout()->WHEEL_BASE;
 	float wheeltrack = mAttributes.GetLayout()->TRACK_WIDTH.Front;
 	float steer_inside = ANGLE2RAD(steering);
+	float ackermann = mMWAttributes->ACKERMANN;
+	if (ackermann == 1.0f) {
+		// default Ackermann is determined by wheelbase (estimate of real life modern cars)
+		// attribute or tuning can be used to overwrite this
+		ackermann -= (wheelbase - 2.0f) * 0.5f;
+	}
 
 	// clamp steering angle <= 180 degrees
 	if (steer_inside > (float)M_PI)
@@ -258,14 +265,30 @@ void ChassisMW::ComputeAckerman(const float steering, const ChassisMW::State &st
 	// this is determined by the distance of the wheel to the center of the rear axle
 	// this equation is a modified version of 1/tan(L/(R+T/2)), where L is the wheelbase, R is the steering radius, and T is the track width
 	float steer_outside = (wheelbase * steer_inside) / (wheeltrack * steer_inside + wheelbase);
+	steer_outside = UMath::Lerp(steer_inside, steer_outside, UMath::Abs(ackermann)); // adjustable Ackermann
 	float steer0, steer1; // 0 - right, 1 - left
+	float steer2, steer3; // 2 - right, 3 - left (rear)
 	if (going_right) {
-		steer0 = steer_inside;
-		steer1 = steer_outside;
+		if (ackermann >= 0.0f) {
+			steer0 = steer_inside;
+			steer1 = steer_outside;
+		} else { // anti-Ackermann reduces the angle of the inside wheel
+			steer0 = steer_outside;
+			steer1 = steer_inside;
+		}
 	} else {
-		steer1 = -steer_inside;
-		steer0 = -steer_outside;
+		if (ackermann >= 0.0f) {
+			steer1 = -steer_inside;
+			steer0 = -steer_outside;
+		} else {
+			steer1 = -steer_outside;
+			steer0 = -steer_inside;
+		}
 	}
+	steer0 += left->w;
+	steer1 += right->w;
+	steer2 = r_left->w;
+	steer3 = r_right->w;
 
 	float ca, sa;
 	// calculate forward vector for front wheels
@@ -286,6 +309,25 @@ void ChassisMW::ComputeAckerman(const float steering, const ChassisMW::State &st
 	l.y = 0.0f;
 	UMath::Rotate(l, state.matrix, l);
 	*left = UMath::Vector4Make(l, steer1);
+
+	// calculate forward vector for rear wheels
+	UMath::Vector3 rr;
+	ca = cosf(steer2);
+	sa = sinf(steer2);
+	rr.z = ca;
+	rr.x = sa;
+	rr.y = 0.0f;
+	UMath::Rotate(rr, state.matrix, rr);
+	*r_right = UMath::Vector4Make(rr, steer2);
+
+	UMath::Vector3 rl;
+	ca = cosf(steer3);
+	sa = sinf(steer3);
+	rl.z = ca;
+	rl.x = sa;
+	rl.y = 0.0f;
+	UMath::Rotate(rl, state.matrix, rl);
+	*r_left = UMath::Vector4Make(rl, steer3);
 }
 
 void ChassisMW::SetCOG(float extra_bias, float extra_ride) {
@@ -412,8 +454,10 @@ void ChassisMW::DoAerodynamics(const ChassisMW::State &state, float drag_pct, fl
 		UMath::Vector3 drag_center(state.cog);
 
 		// manipulate drag height based on off-throttle amount when 2 or more wheels are grounded
-		/*if (state.ground_effect >= 0.5f)
-			drag_center.y += OffThrottleDragCenterHeight * (1.0f - state.gas_input);*/
+		if (state.ground_effect >= 0.5f){
+			//drag_center.y += OffThrottleDragCenterHeight * (1.0f - state.gas_input);
+			drag_center.y += pitch * 0.1f; // offset drag height based on pitch
+		}
 
 		UMath::RotateTranslate(drag_center, state.matrix, drag_center);
 		mRB->ResolveForce(&drag_vector, &drag_center);

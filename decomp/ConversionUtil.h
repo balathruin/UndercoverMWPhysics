@@ -72,7 +72,7 @@ inline float NM2LBIN(const Nm _nm_) {
 }
 
 inline Nm FTLB2NM(const FtLbs _ftlb_) {
-    return _ftlb_ * 1.3558f;
+    return _ftlb_ * 1.355818f;
 }
 
 inline float FTLB2HP(const float _ftlb, const float _rpm) {
@@ -80,7 +80,7 @@ inline float FTLB2HP(const float _ftlb, const float _rpm) {
 }
 
 inline Hp NM2HP(const Nm _nm, const Rpm _rpm) {
-    return _nm * 0.7376f * _rpm / 5252.0f;
+    return _nm * 0.737562f * _rpm / 5252.0f;
 }
 
 inline Mps KPH2MPS(Kph x) {

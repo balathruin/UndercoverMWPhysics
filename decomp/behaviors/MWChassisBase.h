@@ -58,7 +58,7 @@ public:
 	//float ComputeLateralGripScale(const State &state);
 	//float ComputeTractionScale(const State &state);
 	SleepState DoSleep(const State &state);
-	void ComputeAckerman(const float steering, const State &state, UMath::Vector4 *left, UMath::Vector4 *right);
+	void ComputeAckerman(const float steering, const State &state, UMath::Vector4 *left, UMath::Vector4 *right, UMath::Vector4 *r_left, UMath::Vector4 *r_right);
 	void SetCOG(float extra_bias, float extra_ride);
 	void ComputeState(float dT, State &state);
 	void DoAerodynamics(const State &state, float drag_pct, float aero_pct, float aero_front_z, float aero_rear_z,

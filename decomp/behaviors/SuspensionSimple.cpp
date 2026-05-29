@@ -241,7 +241,9 @@ void SuspensionSimpleMW::DoSteering(ChassisMW::State &state, UMath::Vector3 &rig
 	}
 	UMath::Vector4 r4;
 	UMath::Vector4 l4;
-	ComputeAckerman(steer_input * DEG2ANGLE(1.0f), state, &l4, &r4);
+	UMath::Vector4 rr4;
+	UMath::Vector4 rl4;
+	ComputeAckerman(steer_input * DEG2ANGLE(1.0f), state, &l4, &r4, &rl4, &rr4);
 
 	right = UMath::Vector4To3(r4);
 	left = UMath::Vector4To3(l4);
@@ -420,11 +422,11 @@ float SuspensionSimpleMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float
 		mLongitudeForce += acc_diff * WheelMomentOfInertia / mRadius;
 	}
 
-	bool use_ellipse = false;
+	/*bool use_ellipse = false;
 	if (mAppliedTorque * fwd_vel > 0.0f && !mBrakeLocked) {
 		use_ellipse = true;
 		mLongitudeForce *= TireForceEllipseRatio;
-	}
+	}*/
 
 	float len_force = UMath::Sqrt(mLateralForce * mLateralForce + mLongitudeForce * mLongitudeForce);
 	float max_force = mLoad * staticgrip_spec * mTractionBoost;
@@ -438,9 +440,9 @@ float SuspensionSimpleMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float
 		mLateralForce *= ratio;
 		mLongitudeForce *= ratio;
 		max_slip = (ratio * ratio) * max_slip;
-	} else if (use_ellipse) {
+	} /*else if (use_ellipse) {
 		mLongitudeForce *= InvTireForceEllipseRatio;
-	}
+	}*/
 
 	if (UMath::Abs(slip_speed) > max_slip) {
 		mTraction *= max_slip / UMath::Abs(slip_speed);
