@@ -825,21 +825,26 @@ void SuspensionRacerMW::DoSteering(State &state, UMath::Vector3 &right, UMath::V
 	UMath::Vector4 rr4;
 	UMath::Vector4 rl4;
 
-	float toe_fl = DEG2RAD(mMWAttributes->TOE.Front); // positive is toe-in; negative right, positive left
-	float toe_fr = -toe_fl;
-	float toe_rl = DEG2RAD(mMWAttributes->TOE.Rear);
-	float toe_rr = -toe_rl;
+	l4.w = DEG2RAD(mMWAttributes->TOE.Front); // positive is toe-in; negative right, positive left
+	r4.w = -l4.w;
+	rl4.w = DEG2RAD(mMWAttributes->TOE.Rear);
+	rr4.w = -rl4.w;
 	float bump_steer_front = mMWAttributes->BUMP_STEER.Front; // amount of toe change by compression (scales with travel)
 	float bump_steer_rear = mMWAttributes->BUMP_STEER.Rear; // positive is toe-in in compression
-	if (bump_steer_front || bump_steer_rear) { // dynamic toe from compression
-		float travel_front = INCH2METERS(mMWAttributes->TRAVEL.Front);
-		float travel_rear = INCH2METERS(mMWAttributes->TRAVEL.Rear);
-		// TODO consider using static ride height instead of 50% compression (calculated or attribute)
-		// arcade downforce is a potential issue as it's one of the main sources of compression
-		l4.w = toe_fl + DEG2RAD((mTires[0]->GetCompression() - travel_front * 0.5) * bump_steer_front);
-		r4.w = toe_fr - DEG2RAD((mTires[1]->GetCompression() - travel_front * 0.5) * bump_steer_front);
-		rl4.w = toe_rl + DEG2RAD((mTires[2]->GetCompression() - travel_rear * 0.5) * bump_steer_rear);
-		rr4.w = toe_rr - DEG2RAD((mTires[3]->GetCompression() - travel_rear * 0.5) * bump_steer_rear);
+	// current compression is reduced by compression at steady state (calculate if in compression or not)
+	// decompression compared to steady state reverses the effect of bump steer
+	// downforce is a potential issue as it's one of the main sources of compression, however
+	// using AerodynamicDownforce would negate the majority of the effect
+	if (bump_steer_front || bump_steer_rear) {
+		// every correctly configured car at least doubles its effective weight at 100m/s
+		float downforce = UMath::Ramp(state.speed, 0.0f, 100.0f);
+		if (!bArcadeDownforce)
+			downforce = UMath::Pow(downforce, 2.0f);
+		downforce += 1.0f;
+		l4.w += DEG2RAD((mTires[0]->GetCompression() - GuessCompression(0, -state.mass * 10 * downforce)) * bump_steer_front);
+		r4.w -= DEG2RAD((mTires[1]->GetCompression() - GuessCompression(1, -state.mass * 10 * downforce)) * bump_steer_front);
+		rl4.w += DEG2RAD((mTires[2]->GetCompression() - GuessCompression(2, -state.mass * 10 * downforce)) * bump_steer_rear);
+		rr4.w -= DEG2RAD((mTires[3]->GetCompression() - GuessCompression(3, -state.mass * 10 * downforce)) * bump_steer_rear);
 	}
 
 	if (mHumanAI && mHumanAI->IsPlayerSteering()) {

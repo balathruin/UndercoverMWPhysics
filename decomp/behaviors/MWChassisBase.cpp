@@ -62,7 +62,11 @@ Meters ChassisMW::GuessCompression(unsigned int id, Newtons downforce) {
 	if (downforce < 0.0f) {
 		unsigned int axle = id / 2;
 		float spring_weight = LBIN2NM(mMWAttributes->SPRING_STIFFNESS.At(axle));
+		float spring_prog = mMWAttributes->SPRING_PROGRESSION.At(axle);
 		downforce *= 0.25f;
+		compression = -downforce / spring_weight;
+		// include progression in spring weight and repeat
+		spring_weight += compression * spring_prog * spring_weight;
 		compression = -downforce / spring_weight;
 	}
 	return compression;
