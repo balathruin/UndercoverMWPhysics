@@ -703,6 +703,9 @@ void EngineRacer::DoInduction(const Physics::Tunings *tunings, float dT) {
 	}
 
 	float desired_spool = UMath::Ramp(mThrottle, 0.0f, 0.5f);
+	// limit turbo spool by throttle position
+	if (type == Physics::Info::INDUCTION_TURBO_CHARGER)
+		desired_spool = UMath::Ramp(mThrottle, 0.4f, 0.9f);
 	float rpm = RPS2RPM(mAngularVelocity);
 
 	if (IsGearChanging())
@@ -722,6 +725,9 @@ void EngineRacer::DoInduction(const Physics::Tunings *tunings, float dT) {
 		}
 	} else if (mSpool < desired_spool) {
 		float spool_time = mMWInfo->SPOOL_TIME_UP;
+		// turbos spool up faster with nos and slower with partial throttle
+		if (type == Physics::Info::INDUCTION_TURBO_CHARGER)
+			spool_time = spool_time / UMath::Sqrt(mNOSBoost) / mThrottle;
 		if (spool_time > FLOAT_EPSILON) {
 			mSpool += dT / spool_time;
 			mSpool = UMath::Min(mSpool, desired_spool);
