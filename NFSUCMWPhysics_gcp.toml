@@ -1,4 +1,5 @@
-mw_physics_opponents = false		# set to true to have MW physics for opponents instead of just the player
-mw_physics_cops = false		    # set to true to have MW physics for cops instead of just the player
-rev_limiter = true			# enables the rev limiter, set to false to have higher RPMs
-arcade_downforce = true			# use arcade or semi-realistic downforce formula
+mw_physics_opponents = false # set to true to have MW physics for opponents instead of just the player
+mw_physics_cops = false      # set to true to have MW physics for cops instead of just the player
+rev_limiter = true           # enables the rev limiter, set to false to have higher RPMs
+arcade_downforce = true      # use arcade or semi-realistic downforce formula (arcade increases low & medium speed grip)
+arcade_tires = true          # arcade tires have more grip on average, set to false for stricter grip limits (analog inputs recommended)

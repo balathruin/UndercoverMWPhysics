@@ -109,7 +109,7 @@ float CounterSteerOff;
 float MAX_STEERING = 45.0f;
 
 float SteeringRangeData[] = {40.0f, 20.0f, 10.0f, 5.5f, 4.5f, 3.25f, 2.9f, 2.9f, 2.9f, 2.9f};
-float SteeringSpeedData[] = {1.0f, 1.0f, 1.0f, 0.56f, 0.5f, 0.35f, 0.3f, 0.3f, 0.3f, 0.3f};
+float SteeringSpeedData[10] = {1.0f};
 float SteeringWheelRangeData[] = {45.0f, 15.0f, 11.0f, 8.0f, 7.0f, 7.0f, 7.0f, 7.0f, 7.0f, 7.0f};
 float SteeringInputSpeedData[] = {1.0f, 1.05f, 1.1f, 1.5f, 2.2f, 3.1f};
 float SteeringInputData[] = {1.0f, 1.05f, 1.1f, 1.2f, 1.3f, 1.4f};
@@ -172,6 +172,8 @@ void SuspensionRacerMW::Tire::EndFrame(float dT) {}
 // Credits: Brawltendo
 Newtons SuspensionRacerMW::Tire::ComputeLateralForce(float load, float slip_angle) {
 	float angle = ANGLE2DEG(slip_angle);
+	if (!bArcadeTires)
+		angle /= 0.6f; // move peak lateral load to 7.2°
 	float norm_angle = angle * 0.5f;
 	int slip_angle_table = (int)norm_angle;
 	load *= 0.001f; // convert to kN
@@ -283,15 +285,15 @@ void SuspensionRacerMW::Tire::UpdateFree(float dT) {
 }
 
 float RollingFriction = 2.0f;
-/*static const float TireForceEllipseRatio = 1.5f;
-static const float InvTireForceEllipseRatio = 1.0 / TireForceEllipseRatio;*/
+static const float TireForceEllipseRatio = UMath::Sqrt(2.0f);
+static const float InvTireForceEllipseRatio = 1.0 / TireForceEllipseRatio;
 
 // Credits: Brawltendo
 float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float body_speed, float load, float dT) {
 	const float brake_spec = FTLB2NM(mMWSpecs->BRAKES.At(mAxleIndex)) * BrakingTorque;
 	const float ebrake_spec = FTLB2NM(mMWSpecs->EBRAKE) * EBrakingTorque;
-	const float dynamicgrip_spec = mMWSpecs->DYNAMIC_GRIP.At(mAxleIndex);
-	const float staticgrip_spec = mMWSpecs->STATIC_GRIP.At(mAxleIndex);
+	float dynamicgrip_spec = mMWSpecs->DYNAMIC_GRIP.At(mAxleIndex);
+	float staticgrip_spec = mMWSpecs->STATIC_GRIP.At(mAxleIndex);
 	// free rolling wheel
 	if (mLoad <= 0.0f && !mBrakeLocked) {
 		mAV = fwd_vel / mRadius;
@@ -327,14 +329,21 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 	float skid_speed = UMath::Sqrt(slip_speed * slip_speed + lat_vel * lat_vel);
 	float slip_ratio = 1.0f;
 	// reduce lateral grip for slipping wheels by adjusting loadsens input
-	if (slip_speed > mMaxSlip) {
-		slip_ratio = mMaxSlip / slip_speed;
+	if (UMath::Abs(slip_speed) > mMaxSlip) {
+		slip_ratio = mMaxSlip / UMath::Abs(slip_speed);
+	}
+	// non arcade tires lose grip based on how fast they are spinning
+	if (!bArcadeTires) { // -20% grip at ~400 km/h
+		float speed_sensitivity = 1.0f - UMath::Ramp(body_speed + slip_speed, 21.0f, 111.0f) * 0.2f;
+		dynamicgrip_spec *= speed_sensitivity;
+		staticgrip_spec *= speed_sensitivity;
+		WriteLog(std::format("speed_sensitivity is {}", speed_sensitivity));
 	}
 	//float pilot_factor = GetPilotFactor(body_speed);
 	if (skid_speed > FLOAT_EPSILON && (lat_vel != 0.0f || fwd_vel != 0.0f)) {
 		dynamicfriction = dynamicgrip_spec * mTractionBoost;
 		//dynamicfriction *= pilot_factor;
-		groundfriction = mLoad * dynamicfriction / UMath::Max(skid_speed, 1.0f);
+		groundfriction = mLoad * dynamicfriction / (skid_speed + 1.0f);
 		float slipgroundfriction = mLoad * dynamicfriction / UMath::Sqrt(fwd_vel * fwd_vel + lat_vel * lat_vel);
 		CheckForBrakeLock(abs_fwd * slipgroundfriction);
 	}
@@ -349,7 +358,7 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 			mLongitudeForce /= dynamicfriction;
 		}
 		// ensure grip is reduced while traction is broken
-		mLongitudeForce = UMath::Limit(mLongitudeForce, GetTotalTorque() / mRadius * UMath::Max((dynamicgrip_spec / staticgrip_spec), UMath::Sqrt(mTraction)));
+		mLongitudeForce = UMath::Limit(mLongitudeForce, GetTotalTorque() / mRadius * UMath::Max(dynamicgrip_spec / staticgrip_spec, UMath::Sqrt(mTraction)));
 	} else {
 		mBrakeLocked = false;
 		mLongitudeForce = GetTotalTorque() / mRadius;
@@ -365,11 +374,11 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 		mLongitudeForce += acc_diff * WheelMomentOfInertia / mRadius;
 	}
 
-	/*bool use_ellipse = false;
+	bool use_ellipse = false;
 	if (GetTotalTorque() * fwd_vel > 0.0f && !mBrakeLocked) {
 		use_ellipse = true;
 		mLongitudeForce *= TireForceEllipseRatio;
-	}*/
+	}
 
 	mLateralForce *= mTractionCircle.x;
 	mLongitudeForce *= mTractionCircle.y;
@@ -384,13 +393,14 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 
 	if (len_force > max_force && len_force > 0.001f) {
 		float ratio = max_force / len_force;
+		WriteLog(std::format("ratio is {}", ratio));
 		mTraction = ratio;
 		mLateralForce *= ratio;
 		mLongitudeForce *= ratio;
 		max_slip *= ratio;
-	} /*else if (use_ellipse) {
+	} else if (use_ellipse) {
 		mLongitudeForce *= InvTireForceEllipseRatio;
-	}*/
+	}
 
 	if (UMath::Abs(slip_speed) > max_slip) {
 		mTraction *= max_slip / UMath::Abs(slip_speed);
@@ -402,7 +412,7 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 	//mLongitudeForce *= mSurface.DRIVE_GRIP();
 
 	if (fwd_vel > 1.0f) {
-		mLongitudeForce -= UMath::Sina(mSlipAngle) * mLateralForce /* mDragReduction / UMath::Max(mMWSpecs->GRIP_SCALE.At(mAxleIndex) / 1.75f, 0.8f)*/;
+		mLongitudeForce -= UMath::Sina(mSlipAngle) * mLateralForce * mDragReduction / UMath::Max(mMWSpecs->GRIP_SCALE.At(mAxleIndex) / 1.75f, 0.8f);
 	} else {
 		mLateralForce *= UMath::Min(UMath::Abs(lat_vel), 1.0f);
 	}
@@ -752,7 +762,8 @@ float SuspensionRacerMW::CalculateMaxSteering(State &state, ISteeringWheel::Stee
 	}
 
 	float tbcoeff = 1.0f - (state.gas_input + 1.0f - (state.brake_input + state.ebrake_input) * 0.5f) * 0.5f;
-	max_steering *= BrakeSteeringRangeMultiplier * tbcoeff * SteeringSpeedTable.GetValue(state.local_vel.z) + 1.0f;
+	if (bArcadeTires) // throttle and brake inputs only affect steering for arcade tires
+		max_steering *= BrakeSteeringRangeMultiplier * tbcoeff * SteeringSpeedTable.GetValue(state.local_vel.z) + 1.0f;
 	max_steering *= SteeringRangeCoeffTable.GetValue(std::abs(mSteering.InputAverage.GetValue()));
 
 	const Physics::Tunings *tunings = GetVehicleMWTunings(GetVehicle());
@@ -774,7 +785,7 @@ float SuspensionRacerMW::CalculateMaxSteering(State &state, ISteeringWheel::Stee
 
 	float yaw_left = ANGLE2DEG(mTires[2]->GetSlipAngle());
 	float yaw_right = ANGLE2DEG(mTires[3]->GetSlipAngle());
-	// clamp the max steering range to [rear slip, MAX_STEERING] when countersteering
+	//! clamp the max steering range to [rear slip, MAX_STEERING] when countersteering
 	if (steer_input > 0.0f && yaw_right > 0.0f) {
 		max_steering = UMath::Max(max_steering, yaw_right);
 		max_steering = UMath::Min(max_steering, MAX_STEERING);
@@ -863,7 +874,7 @@ void SuspensionRacerMW::DoSteering(State &state, UMath::Vector3 &right, UMath::V
 	DoWallSteer(state);
 }
 
-GraphEntry<float> BurnoutFrictionData[] = {{0.0f, 1.0f}, {3.6f, 0.95f}, {7.1f, 0.9f}, {11.85f, 0.81f}, {17.8f, 0.72f}, {25.0f, 0.64f}};
+GraphEntry<float> BurnoutFrictionData[] = {{0.0f, 1.0f}, {4.0f, 0.9f}, {8.0f, 0.8f}, {12.0f, 0.72f}, {16.0f, 0.64f}, {20.0f, 0.6f}};
 tGraph<float> BurnoutFrictionTable(BurnoutFrictionData, 6);
 float BurnOutCancelSlipValue = 0.5f;
 //float asd[] = {1.0f, 2.0f, 3.0f};
@@ -958,7 +969,8 @@ float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, f
 	yaw = std::abs(yaw);
 	float retval = 1.0f;
 	retval += std::abs(grade);
-	if (ebrake > YawEBrakeThreshold && yaw < DEG2RAD(YawAngleThreshold))
+	// disable yaw bonus for non arcade tires
+	if (!bArcadeTires || (ebrake > YawEBrakeThreshold && yaw < DEG2RAD(YawAngleThreshold)))
 		return retval;
 
 	float speed_factor = UMath::Ramp(speed, 28.0f, 112.0f);
@@ -1177,17 +1189,33 @@ void SuspensionRacerMW::TuneWheelParams(State &state) {
 			}
 			// handbrake only applies to the rear wheels
 			mTires[i]->SetEBrake(b);
-			// DoDrifting replacement - reduce rear grip if current slip angle is higher than the peak
+			// DoDrifting replacement - limit rear grip if current slip angle is higher than the peak
 			float slip_dropoff = 1.0f;
+			float wheel_slip = UMath::Abs(GetWheelSlipAngle(i));
 			// higher performance tire has lower peak slip (expected range is 7-10°)
 			float peak_slip = DEG2ANGLE(Tweak_DriftSlipAngle - UMath::Pow(mMWAttributes->GRIP_SCALE.At(1), 2.0f));
-			if (GetWheelSlipAngle(i) > peak_slip) {
-				// consider speed ramp for smooth transition to drift enabled speed, maybe replace mult by throttle+1
-				slip_dropoff -= (GetWheelSlipAngle(i) - peak_slip) * (1.0f + state.gas_input * (1.0f - mMWAttributes->TORQUE_SPLIT));
+			if (!bArcadeTires) // lower peak slip for non arcade tires
+				peak_slip *= 0.75f;
+			if (wheel_slip > peak_slip) { // 30° over while full throttle with RWD results in maximum dropoff
+				slip_dropoff -= (wheel_slip - peak_slip) * (1.0f + state.gas_input * (1.0f - mMWAttributes->TORQUE_SPLIT))
+								* UMath::Ramp(state.speed, 20.0f, 30.0f) * 2.1f; // smooth enable dropoff
+				WriteLog(std::format("slip_dropoff rear is {}", slip_dropoff));
 			}
-			mTires[i]->SetDriftFriction(slip_dropoff);
+			mTires[i]->SetDriftFriction(UMath::Max(slip_dropoff, 0.65f));
 		} else {
 			mTires[i]->SetEBrake(0.0f);
+		}
+		// non arcade tires also limit front grip
+		if (IsFront(i) && !bArcadeTires) {
+			float slip_dropoff = 1.0f;
+			float wheel_slip = UMath::Abs(GetWheelSlipAngle(i));
+			float peak_slip = DEG2ANGLE(Tweak_DriftSlipAngle - UMath::Pow(mMWAttributes->GRIP_SCALE.At(0), 2.0f)) * 0.75f;
+			if (wheel_slip > peak_slip) { // 30° over while full throttle with FWD results in maximum dropoff
+				slip_dropoff -= (wheel_slip - peak_slip) * (1.0f + state.gas_input * mMWAttributes->TORQUE_SPLIT)
+								* UMath::Ramp(state.speed, 20.0f, 30.0f) * 2.1f;
+				WriteLog(std::format("slip_dropoff front is {}", slip_dropoff));
+			}
+			mTires[i]->SetDriftFriction(UMath::Max(slip_dropoff, 0.65f));
 		}
 
 		// speedbreaker increases front tire friction relative to the absolute steering input
