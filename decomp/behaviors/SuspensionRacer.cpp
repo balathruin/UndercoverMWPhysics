@@ -337,7 +337,6 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 		float speed_sensitivity = 1.0f - UMath::Ramp(body_speed + slip_speed, 21.0f, 111.0f) * 0.2f;
 		dynamicgrip_spec *= speed_sensitivity;
 		staticgrip_spec *= speed_sensitivity;
-		WriteLog(std::format("speed_sensitivity is {}", speed_sensitivity));
 	}
 	//float pilot_factor = GetPilotFactor(body_speed);
 	if (skid_speed > FLOAT_EPSILON && (lat_vel != 0.0f || fwd_vel != 0.0f)) {
@@ -393,7 +392,6 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 
 	if (len_force > max_force && len_force > 0.001f) {
 		float ratio = max_force / len_force;
-		WriteLog(std::format("ratio is {}", ratio));
 		mTraction = ratio;
 		mLateralForce *= ratio;
 		mLongitudeForce *= ratio;
@@ -1199,7 +1197,6 @@ void SuspensionRacerMW::TuneWheelParams(State &state) {
 			if (wheel_slip > peak_slip) { // 30° over while full throttle with RWD results in maximum dropoff
 				slip_dropoff -= (wheel_slip - peak_slip) * (1.0f + state.gas_input * (1.0f - mMWAttributes->TORQUE_SPLIT))
 								* UMath::Ramp(state.speed, 20.0f, 30.0f) * 2.1f; // smooth enable dropoff
-				WriteLog(std::format("slip_dropoff rear is {}", slip_dropoff));
 			}
 			mTires[i]->SetDriftFriction(UMath::Max(slip_dropoff, 0.65f));
 		} else {
@@ -1213,7 +1210,6 @@ void SuspensionRacerMW::TuneWheelParams(State &state) {
 			if (wheel_slip > peak_slip) { // 30° over while full throttle with FWD results in maximum dropoff
 				slip_dropoff -= (wheel_slip - peak_slip) * (1.0f + state.gas_input * mMWAttributes->TORQUE_SPLIT)
 								* UMath::Ramp(state.speed, 20.0f, 30.0f) * 2.1f;
-				WriteLog(std::format("slip_dropoff front is {}", slip_dropoff));
 			}
 			mTires[i]->SetDriftFriction(UMath::Max(slip_dropoff, 0.65f));
 		}
