@@ -346,7 +346,7 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 	if (skid_speed > FLOAT_EPSILON && (lat_vel != 0.0f || fwd_vel != 0.0f)) {
 		dynamicfriction = dynamicgrip_spec * mTractionBoost;
 		//dynamicfriction *= pilot_factor;
-		groundfriction = mLoad * slippage * dynamicfriction / (skid_speed + 1.0f);
+		groundfriction = mLoad * dynamicfriction / (skid_speed + 1.0f);
 		float slipgroundfriction = mLoad * dynamicfriction / UMath::Sqrt(fwd_vel * fwd_vel + lat_vel * lat_vel);
 		CheckForBrakeLock(abs_fwd * slipgroundfriction);
 	}
@@ -354,7 +354,7 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 	if (mTraction < 1.0f || mBrakeLocked) {
 		mLongitudeForce = groundfriction;
 		mLongitudeForce *= slip_speed;
-		mLateralForce = -groundfriction * lat_vel;
+		mLateralForce = -groundfriction * lat_vel * slippage;
 
 		if (body_speed < kOneMPH && dynamicfriction > 0.1f) {
 			mLateralForce /= dynamicfriction;
@@ -1233,8 +1233,13 @@ void SuspensionRacerMW::TuneWheelParams(State &state) {
 			circle.y = 1.0f - tunings->Value[Physics::Tunings::HANDLING] * 0.1f;
 			mTires[i]->SetTractionCircle(circle);
 		}
+		// reduce nitrous traction boost so it can't be used to go around corners faster
+		float nos_traction_reduction = (state.nos_boost - 1.0f) * 0.5f;
+		// further reduce nitrous traction for non arcade tires to cause wheelspin if used at the wrong time
+		if (!bArcadeTires)
+			nos_traction_reduction *= 0.5f;
 		// traction is increased by perfect shifts in drag races and also by engaging the nitrous
-		mTires[i]->ScaleTractionBoost(UMath::Pow(state.nos_boost, 0.6f) * state.shift_boost);
+		mTires[i]->ScaleTractionBoost((state.nos_boost - nos_traction_reduction) * state.shift_boost);
 
 		// popped tires are permanently braking and have reduced traction
 		if ((1 << i) & state.blown_tires) {

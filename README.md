@@ -24,7 +24,7 @@ I have recently discovered that the latter project uses AI, so while this mod wa
 - Many small adjustments to grip calculations, resolving some cases where it feels or is infinite
 - Support for dynamic weight and aero distribution, downforce and drag
 - Downshift protection, adjustable Ackermann, static and dynamic toe angle (bump steer)
-- Option to toggle between arcade and "simcade" downforce and tires in the config file
+- Option to toggle between arcade and "simcade" downforce and tires and rechargeable nos in the config file
 
 ## Useful info
 

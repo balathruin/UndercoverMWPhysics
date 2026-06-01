@@ -3,3 +3,4 @@ mw_physics_cops = false      # set to true to have MW physics for cops instead o
 rev_limiter = true           # enables the rev limiter, set to false to have higher RPMs
 arcade_downforce = true      # use arcade or semi-realistic downforce formula (arcade increases low & medium speed grip)
 arcade_tires = true          # arcade tires have more grip on average, set to false for stricter grip limits (analog inputs recommended)
+rechargeable_nos = true      # set to false to turn off nos recharging with speed but increase capacity by 5 times

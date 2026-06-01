@@ -322,7 +322,7 @@ void GetLerpedCarTuning(MWCarTuning& tmp, const std::string& model, float brake,
 	// nos TODO car specific support
 	if (nitro < 0.0) {
 		tmp.FLOW_RATE = 0.0;
-		tmp.NOS_CAPACITY = 40.0;
+		tmp.NOS_CAPACITY = 0.0;
 		tmp.NOS_DISENGAGE = 2.0;
 		tmp.RECHARGE_MAX = 0.0;
 		tmp.RECHARGE_MAX_SPEED = 0.0;
@@ -459,6 +459,13 @@ void GetLerpedCarTuning(MWCarTuning& out, const std::string& model, const Vehicl
 		out.STATIC_GRIP.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_RIDEHEIGHT], 0.1);
 		out.DYNAMIC_GRIP.Front *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_RIDEHEIGHT], -0.1);
 		out.DYNAMIC_GRIP.Rear *= GetPhysicsTuningValue(cust->PhysicsTuning[UCE_RIDEHEIGHT], 0.1);
+
+		// TODO maybe disable capacity reset too
+		if (!bRechargeableNOS) {
+			out.NOS_CAPACITY *= 5;
+			out.RECHARGE_MAX *= 0;
+			out.RECHARGE_MIN *= 0;
+		}
 	}
 }
 
