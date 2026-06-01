@@ -92,10 +92,16 @@ float ChassisMW::CalculateUndersteerFactor() {
 }
 
 Mps ChassisMW::ComputeMaxSlip(const ChassisMW::State &state) {
-	float ramp = UMath::Ramp(state.speed, 10.0f, 71.0f);
-	float result = ramp + 0.5f;
-	if (state.gear == G_REVERSE)
-		result += 1.0f;
+	// 25% -> 1% ideal slippage (3.6 km/h -> 450 km/h)
+	float ramp = UMath::Ramp(state.speed, 1.0f, 125.0f);
+	float result = ramp + 0.2f;
+	// increase max slip while braking to avoid traction limit in most cases
+	if (bArcadeTires && state.brake_input > state.gas_input)
+		result += (state.brake_input - state.gas_input) * 0.3f; // double static max_slip from 0.25 to 0.5
+	if (bArcadeTires)
+		result += 0.05f;
+	if (state.gear == G_REVERSE && bArcadeTires)
+		result = 2.0f;
 	return result;
 }
 

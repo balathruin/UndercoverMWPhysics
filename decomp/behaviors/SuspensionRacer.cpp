@@ -327,10 +327,14 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 	float dynamicfriction = 1.0f;
 	mSlip = slip_speed;
 	float skid_speed = UMath::Sqrt(slip_speed * slip_speed + lat_vel * lat_vel);
-	float slip_ratio = 1.0f;
-	// reduce lateral grip for slipping wheels by adjusting loadsens input
-	if (UMath::Abs(slip_speed) > mMaxSlip) {
-		slip_ratio = mMaxSlip / UMath::Abs(slip_speed);
+	float slip_ratio = 0.0f;
+	if (fwd_vel) {
+		slip_ratio = mAV * mRadius / fwd_vel * 0.01f;
+	}
+	float slippage = 1.0f;
+	// reduce lateral grip for slipping wheels by multiplying load
+	if (!bArcadeTires && UMath::Abs(slip_ratio) > mMaxSlip / abs_fwd) {
+		slippage = (mMaxSlip / abs_fwd / UMath::Abs(slip_ratio) + 0.65f) / 1.65f; // 0.4 min
 	}
 	// non arcade tires lose grip based on how fast they are spinning
 	if (!bArcadeTires) { // -20% grip at ~400 km/h
@@ -342,7 +346,7 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 	if (skid_speed > FLOAT_EPSILON && (lat_vel != 0.0f || fwd_vel != 0.0f)) {
 		dynamicfriction = dynamicgrip_spec * mTractionBoost;
 		//dynamicfriction *= pilot_factor;
-		groundfriction = mLoad * dynamicfriction / (skid_speed + 1.0f);
+		groundfriction = mLoad * slippage * dynamicfriction / (skid_speed + 1.0f);
 		float slipgroundfriction = mLoad * dynamicfriction / UMath::Sqrt(fwd_vel * fwd_vel + lat_vel * lat_vel);
 		CheckForBrakeLock(abs_fwd * slipgroundfriction);
 	}
@@ -361,7 +365,7 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 	} else {
 		mBrakeLocked = false;
 		mLongitudeForce = GetTotalTorque() / mRadius;
-		mLateralForce = ComputeLateralForce(mLoad * slip_ratio, UMath::Abs(mSlipAngle));
+		mLateralForce = ComputeLateralForce(mLoad * slippage, UMath::Abs(mSlipAngle));
 		if (lat_vel > 0.0f) {
 			mLateralForce = -mLateralForce;
 		}
