@@ -10,10 +10,15 @@ inline unsigned int UTIL_InterprolateIndex(unsigned int last_index, float value,
 namespace Physics {
 	namespace Info {
 		float AerodynamicDownforce(MWCarTuning* pThis, const float speed) {
+			float downforce;
 			if (bArcadeDownforce) {
-				return speed * pThis->AERO_COEFFICIENT * 120.0f; // tonnes at 300km/h
+				downforce = speed * pThis->AERO_COEFFICIENT * 120.0f; // tonnes at 300km/h
+			} else {
+				downforce = UMath::Pow(speed, 2.0f) * pThis->AERO_COEFFICIENT * 1.2f; // 1.2 air density, 2x multiplier
 			}
-			return UMath::Pow(speed, 2.0f) * pThis->AERO_COEFFICIENT * 1.2f; // 1.2 air density, 2x multiplier
+			if (bDownforceReduction)
+				downforce *= 0.5f;
+			return downforce;
 		}
 
 		enum eInductionType {
@@ -198,7 +203,7 @@ namespace Physics {
 				if (rpm < redline) {
 					// find the upshift RPM for this gear using predicted engine torque
 					while (!flag) {
-						// seems like the rpm and spool params are swapped in both instances
+						//! seems like the rpm and spool params are swapped in both instances
 						// so either it's a mistake that was copy-pasted or it was a deliberate choice
 						float currenttorque = Torque(mw, max) * (InductionBoost(mw, 1.0f, max, NULL, NULL) + 1.0f);
 						float shiftuptorque;

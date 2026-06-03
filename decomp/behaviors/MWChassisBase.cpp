@@ -96,12 +96,13 @@ Mps ChassisMW::ComputeMaxSlip(const ChassisMW::State &state) {
 	float ramp = UMath::Ramp(state.speed, 1.0f, 125.0f);
 	float result = ramp + 0.2f;
 	// increase max slip while braking to avoid traction limit in most cases
-	if (bArcadeTires && state.brake_input > state.gas_input)
-		result += (state.brake_input - state.gas_input) * 0.3f; // double static max_slip from 0.25 to 0.5
-	if (bArcadeTires)
+	if (bArcadeTires) {
 		result += 0.05f;
-	if (state.gear == G_REVERSE && bArcadeTires)
-		result = 2.0f;
+		if (state.brake_input > state.gas_input)
+			result += (state.brake_input - state.gas_input) * 0.25f; // double static max_slip from 0.25 to 0.5
+		if (state.gear == G_REVERSE)
+			result = 2.0f;
+	}
 	return result;
 }
 
@@ -491,6 +492,8 @@ void ChassisMW::DoAerodynamics(const ChassisMW::State &state, float drag_pct, fl
 		// lower downforce when car is in air
 		if (state.ground_effect == 0.0f) {
 			downforce *= 0.65f; // reduced from 0.8 for better UC map compatibility
+			if (bDownforceReduction)
+				downforce *= 1.25f; // avoid stacking too much downforce reduction
 		}
 		if (tunings) {
 			downforce += downforce * Tweak_TuningAero_DownForce * tunings->Value[Physics::Tunings::AERODYNAMICS];

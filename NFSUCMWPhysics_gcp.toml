@@ -2,5 +2,7 @@ mw_physics_opponents = false # set to true to have MW physics for opponents inst
 mw_physics_cops = false      # set to true to have MW physics for cops instead of just the player
 rev_limiter = true           # enables the rev limiter, set to false to have higher RPMs
 arcade_downforce = true      # use arcade or semi-realistic downforce formula (arcade increases low & medium speed grip)
-arcade_tires = true          # arcade tires have more grip on average, set to false for stricter grip limits (analog inputs recommended)
-rechargeable_nos = true      # set to false to turn off nos recharging with speed but increase capacity by 5 times
+arcade_tires = true          # false replaces MW tire simulation with something closer to reality
+half_downforce = false       # reduce downforce by 50%
+grip_reduction = 0           # 0 = off; 1 = ~10%, 2 = ~13% (~F1); 4 = ~22% (~GT); hyperbolic scaling (max 20)
+rechargeable_nos = true      # set to false to turn off nos recharging with speed but increase capacity by 4 times

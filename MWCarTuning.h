@@ -462,7 +462,7 @@ void GetLerpedCarTuning(MWCarTuning& out, const std::string& model, const Vehicl
 
 		// TODO maybe disable capacity reset too
 		if (!bRechargeableNOS) {
-			out.NOS_CAPACITY *= 5;
+			out.NOS_CAPACITY *= 4;
 			out.RECHARGE_MAX *= 0;
 			out.RECHARGE_MIN *= 0;
 		}

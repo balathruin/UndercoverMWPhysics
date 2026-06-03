@@ -6,7 +6,7 @@ class SuspensionRacerMW : public ChassisMW {
 		Tire(float radius, int index, const Attrib::Gen::car_tuning *specs, MWCarTuning* mwSpecs);
 		void BeginFrame(float max_slip, float grip_boost, float traction_boost, float drag_reduction);
 		void EndFrame(float dT);
-		float ComputeLateralForce(float load, float slip_angle);
+		float ComputeLateralForce(float load, float slip_angle, float slip_ratio, float peak_slip, float lateralgrip_spec);
 		float GetPilotFactor(const float speed);
 		void CheckForBrakeLock(float ground_force);
 		void CheckSign();
@@ -125,6 +125,14 @@ class SuspensionRacerMW : public ChassisMW {
 			return mSlipAngle;
 		}
 
+		float GetPeakSlipAngle() {
+			return mPeakSlipAngle;
+		}
+
+		float GetSlipRatio() {
+			return mSlipRatio;
+		}
+
 		void MatchSpeed(float speed) {
 			mAV = speed / mRadius;
 			mRoadSpeed = speed;
@@ -170,6 +178,9 @@ class SuspensionRacerMW : public ChassisMW {
 		enum LastRotationSign { WAS_POSITIVE, WAS_ZERO, WAS_NEGATIVE } mLastSign;
 
 		float mDragReduction;
+
+		float mPeakSlipAngle;
+		float mSlipRatio;
 	};
 
 	// Methods
@@ -259,6 +270,13 @@ class SuspensionRacerMW : public ChassisMW {
 	}
 	float GetWheelSlipAngle(unsigned int idx) {
 		return mTires[idx]->GetSlipAngle();
+	}
+
+	float GetWheelPeakSlipAngle(unsigned int i) {
+		return mTires[i]->GetPeakSlipAngle();
+	}
+	float GetWheelSlipRatio(unsigned int i) {
+		return mTires[i]->GetSlipRatio();
 	}
 
 	// UC IChassis

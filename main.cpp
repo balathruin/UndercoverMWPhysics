@@ -58,6 +58,8 @@ bool bAffectCops = false;
 bool bRevLimiter = true;
 bool bArcadeDownforce = true;
 bool bArcadeTires = true;
+bool bDownforceReduction = false;
+float bGripReduction = 0;
 bool bRechargeableNOS = true;
 
 auto cartuning_LookupKey = (uint32_t(__thiscall*)(Attrib::Gen::car_tuning*, const ISimable*, int))0x721E20;
@@ -427,6 +429,8 @@ BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID) {
 				bRevLimiter = config["rev_limiter"].value_or(bRevLimiter);
 				bArcadeDownforce = config["arcade_downforce"].value_or(bArcadeDownforce);
 				bArcadeTires = config["arcade_tires"].value_or(bArcadeTires);
+				bDownforceReduction = config["half_downforce"].value_or(bDownforceReduction);
+				bGripReduction = UMath::Clamp(config["grip_reduction"].value_or(bGripReduction), 0.f, 20.f);
 				bRechargeableNOS = config["rechargeable_nos"].value_or(bRechargeableNOS);
 			}
 
