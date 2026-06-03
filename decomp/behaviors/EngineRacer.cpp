@@ -75,7 +75,7 @@ void EngineRacer::Create(const BehaviorParams &bp) {
 
 	mDriveTorque = 0.0f;
 	mDriveTorqueAtEngine = 0.0f;
-	mGear = G_NEUTRAL;
+	mGear = G_FIRST;
 	mGearShiftTimer = 0.0f;
 	mThrottle = 0.0f;
 	mSpool = 0.0f;
@@ -763,6 +763,8 @@ void EngineRacer::DoShifting(float dT) {
 	}
 	if (automatic) {
 		AutoShift(dT);
+	} else if (mGear == G_NEUTRAL && mIInput->GetControlBrake() > mIInput->GetControlGas()) {
+		mGear = G_REVERSE;
 	}
 
 	if (mGearShiftTimer > 0.0f) {
