@@ -108,7 +108,7 @@ namespace MWIEngine {
 	bool __thiscall IsTractionControlOn(uintptr_t ptr) {
 		IENGINE_FUNCTION_LOG("IsTractionControlOn");
 		auto pThis = GetEngineRacer(ptr);
-		return false; // todo
+		return false; //! todo (does MW TC count?)
 	}
 	int __thiscall GetTractionControlLevel(uintptr_t ptr) {
 		IENGINE_FUNCTION_LOG("GetTractionControlLevel");

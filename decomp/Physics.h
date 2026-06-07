@@ -16,9 +16,7 @@ namespace Physics {
 			} else {
 				downforce = UMath::Pow(speed, 2.0f) * pThis->AERO_COEFFICIENT * 1.2f; // 1.2 air density, 2x multiplier
 			}
-			if (bDownforceReduction)
-				downforce *= 0.5f;
-			return downforce;
+			return downforce * bDownforcePercent;
 		}
 
 		enum eInductionType {

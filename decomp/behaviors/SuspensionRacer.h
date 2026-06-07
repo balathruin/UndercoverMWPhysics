@@ -3,7 +3,7 @@ class SuspensionRacerMW : public ChassisMW {
   public:
 	class Tire : public WheelMW {
 	  public:
-		Tire(float radius, int index, const Attrib::Gen::car_tuning *specs, MWCarTuning* mwSpecs);
+		Tire(float radius, int index, const Attrib::Gen::car_tuning *specs, MWCarTuning* mwSpecs, float sidewall);
 		void BeginFrame(float max_slip, float grip_boost, float traction_boost, float drag_reduction);
 		void EndFrame(float dT);
 		float ComputeLateralForce(float load, float slip_angle, float slip_ratio, float peak_slip, float lateralgrip_spec);
@@ -181,6 +181,7 @@ class SuspensionRacerMW : public ChassisMW {
 
 		float mPeakSlipAngle;
 		float mSlipRatio;
+		const float mSidewall;
 	};
 
 	// Methods
