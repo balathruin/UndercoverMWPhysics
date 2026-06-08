@@ -8,7 +8,7 @@ class SuspensionRacerMW : public ChassisMW {
 		void EndFrame(float dT);
 		float ComputeLateralForce(float load, float slip_angle, float slip_ratio, float peak_slip, float lateralgrip_spec);
 		float GetPilotFactor(const float speed);
-		void CheckForBrakeLock(float ground_force);
+		//void CheckForBrakeLock(float ground_force);
 		void CheckSign();
 		void UpdateFree(float dT);
 		float UpdateLoaded(float lat_vel, float fwd_vel, float body_speed, float load, float dT);

@@ -62,6 +62,7 @@ float bDownforcePercent = 1;
 float bGripReduction = 0;
 bool bRechargeableNOS = true;
 bool bTractionControl = true;
+bool bAntiLockBrakes = false;
 
 auto cartuning_LookupKey = (uint32_t(__thiscall*)(Attrib::Gen::car_tuning*, const ISimable*, int))0x721E20;
 auto ctor_cartuning = (void(__thiscall*)(Attrib::Gen::car_tuning*, uint32_t))0x721CB0;
@@ -434,6 +435,7 @@ BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID) {
 				bGripReduction = UMath::Clamp(config["grip_reduction"].value_or(bGripReduction), 0.f, 20.f);
 				bRechargeableNOS = config["rechargeable_nos"].value_or(bRechargeableNOS);
 				bTractionControl = config["traction_control"].value_or(bTractionControl);
+				bAntiLockBrakes = config["antilock_brakes"].value_or(bAntiLockBrakes);
 			}
 
 			WriteLog("Mod initialized");

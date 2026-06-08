@@ -212,9 +212,11 @@ Newtons SuspensionRacerMW::Tire::ComputeLateralForce(float load, float slip_angl
 
 float BrakingTorque = 4.0f;
 float EBrakingTorque = 10.0f;
+static float StaticToDynamicBrakeForceRatio = 1.2f;
+static float BrakeLockAngularVelocityFactor = 100.0f;
 
 // Credits: Brawltendo
-void SuspensionRacerMW::Tire::CheckForBrakeLock(float ground_force) {
+/*void SuspensionRacerMW::Tire::CheckForBrakeLock(float ground_force) {
 	const float brake_spec = mMWSpecs->BRAKE_LOCK.At(mAxleIndex) * FTLB2NM(mMWSpecs->BRAKES.At(mAxleIndex)) * BrakingTorque;
 	const float ebrake_spec = FTLB2NM(mMWSpecs->EBRAKE) * EBrakingTorque;
 	static float StaticToDynamicBrakeForceRatio = 1.2f;
@@ -234,7 +236,7 @@ void SuspensionRacerMW::Tire::CheckForBrakeLock(float ground_force) {
 	} else {
 		mBrakeLocked = false;
 	}
-}
+}*/
 
 // Credits: Brawltendo
 void SuspensionRacerMW::Tire::CheckSign() {
@@ -265,19 +267,12 @@ void SuspensionRacerMW::Tire::UpdateFree(float dT) {
 	mSlip = 0.0f;
 	mTraction = 0.0f;
 	mSlipAngle = 0.0f;
-	CheckForBrakeLock(0.0f);
 
-	if (mBrakeLocked) {
+	if (mBrake || mEBrake * mAxleIndex) {
 		mAngularAcc = 0.0f;
 		mAV = 0.0f;
 	} else {
-		const float brake_spec = FTLB2NM(mMWSpecs->BRAKES.At(mAxleIndex)) * BrakingTorque;
-		const float ebrake_spec = FTLB2NM(mMWSpecs->EBRAKE) * EBrakingTorque;
-		float bt = mBrake * brake_spec;
-		float ebt = mEBrake * ebrake_spec;
-		ApplyBrakeTorque(mAV > 0.0f ? -bt : bt);
-		ApplyBrakeTorque(mAV > 0.0f ? -ebt : ebt);
-
+		mBrakeLocked = false;
 		mAngularAcc = GetTotalTorque() / WheelMomentOfInertia;
 		mAV += mAngularAcc * dT;
 	}
@@ -311,19 +306,8 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 
 	float bt = mBrake * brake_spec;
 	float ebt = mEBrake * ebrake_spec;
+	float available_torque = (bt * mMWSpecs->BRAKE_LOCK.At(mAxleIndex) + ebt) * StaticToDynamicBrakeForceRatio;
 	float abs_fwd = UMath::Abs(fwd_vel);
-	if (abs_fwd < 1.0f) {
-		// when car is nearly stopped, apply brake torque using forward velocity and wheel load
-		bt = -mBrake * load * fwd_vel / mRadius;
-		ebt = -mEBrake * load * fwd_vel / mRadius;
-
-		ApplyDriveTorque(-GetDriveTorque() * mEBrake);
-		ApplyBrakeTorque(bt);
-		ApplyBrakeTorque(ebt);
-	} else {
-		ApplyBrakeTorque(mAV > 0.0f ? -bt : bt);
-		ApplyBrakeTorque(mAV > 0.0f ? -ebt : ebt);
-	}
 
 	mSlipAngle = UMath::Atan2a(lat_vel, abs_fwd);
 	float groundfriction = 0.0f;
@@ -355,12 +339,46 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 	mPeakSlipAngle = DEG2ANGLE(peak_slip);
 
 	//float pilot_factor = GetPilotFactor(body_speed);
-	if (skid_speed > FLOAT_EPSILON && (lat_vel != 0.0f || fwd_vel != 0.0f)) {
+	float slipgroundfriction = 0.0f;
+	if (skid_speed > FLOAT_EPSILON && (lat_vel || fwd_vel)) {
 		dynamicfriction = dynamicgrip_spec * mTractionBoost;
 		//dynamicfriction *= pilot_factor;
 		groundfriction = mLoad * dynamicfriction / (skid_speed + 1.0f);
-		float slipgroundfriction = mLoad * dynamicfriction / UMath::Sqrt(fwd_vel * fwd_vel + lat_vel * lat_vel);
-		CheckForBrakeLock(abs_fwd * slipgroundfriction);
+		slipgroundfriction = mLoad * dynamicfriction / UMath::Sqrt(fwd_vel * fwd_vel + lat_vel * lat_vel);
+		//CheckForBrakeLock(abs_fwd * slipgroundfriction);
+	}
+
+	float load_factor = UMath::Ramp(load * 0.001f, 0.0f, 10.0f * staticgrip_spec); // kN, static grip as final load
+	mBrakeLocked = false;
+	if (slipgroundfriction && available_torque > abs_fwd * slipgroundfriction * GetRadius() + UMath::Abs(mAV) * BrakeLockAngularVelocityFactor) {
+		if (available_torque > 1.0f) {
+			if (!bAntiLockBrakes || mAxleIndex * mEBrake) {
+				mBrakeLocked = true;
+				mAV = 0.0f;
+			} else {
+				float brake_factor = (abs_fwd * slipgroundfriction * GetRadius() + UMath::Abs(mAV) *
+				                      BrakeLockAngularVelocityFactor) / available_torque / StaticToDynamicBrakeForceRatio;
+				bt *= brake_factor;
+				ebt *= brake_factor;
+				if (UMath::Abs(slip_ratio) > 0.1f * (1.0f - load_factor * 0.5f)) {
+					bt *= 0.1f * (1.0f - load_factor * 0.5f) / UMath::Abs(slip_ratio);
+					ebt *= 0.1f * (1.0f - load_factor * 0.5f) / UMath::Abs(slip_ratio);
+				}
+				bt *= mTraction;
+				ebt *= mTraction;
+			}
+		}
+	}
+	if (abs_fwd < 1.0f && abs_fwd) {
+		// when car is nearly stopped, apply brake torque using forward velocity and wheel load
+		bt = -mBrake * load * fwd_vel / mRadius;
+		ebt = -mEBrake * load * fwd_vel / mRadius;
+		//ApplyDriveTorque(-GetDriveTorque() * mEBrake);
+		ApplyBrakeTorque(bt);
+		ApplyBrakeTorque(ebt);
+	} else {
+		ApplyBrakeTorque(mAV > 0.0f ? -bt : bt);
+		ApplyBrakeTorque(mAV > 0.0f ? -ebt : ebt);
 	}
 
 	mLongitudeForce = GetTotalTorque() / mRadius;
@@ -413,7 +431,7 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 
 	if (!bArcadeTires && mLoad) {
 		// limit max_force to final load (finite tire capacity)
-		max_force = UMath::Max(mLoad * staticgrip_spec, 10000.0f * staticgrip_spec) * mTractionBoost * mDriftFriction;
+		max_force = UMath::Min(mLoad, 10000.0f) * staticgrip_spec * mTractionBoost * mDriftFriction;
 		// increase the tire-force ellipse size for non arcade tires
 		// grip limit increases the closer the two tire forces are
 		float ellipse_factor = 1.0f;
@@ -423,8 +441,8 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 			ellipse_factor = 0.125f * UMath::Abs(mLongitudeForce) / UMath::Abs(mLateralForce) + 1.125f;
 		}
 		// remove traction boost - this only allows it to increase dynamic friction
-		if (mTractionBoost > 1.0f)
-			max_force /= mTractionBoost;
+		/*if (mTractionBoost > 1.0f)
+			max_force /= mTractionBoost;*/
 		max_force *= ellipse_factor;
 	}
 
@@ -447,13 +465,12 @@ float SuspensionRacerMW::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float 
 		}
 	}
 	if (!bArcadeTires) {
+		float slip_limit = dynamicgrip_spec * 0.1f * mTraction * (1.0f - load_factor * 0.5f); // this allows better tires to increase traction itself
 		mTraction = 1.0f;
 		// calculate traction from slip angle and slip ratio
 		// traction drops faster at high load
-		float load_factor = UMath::Ramp(load * 0.001f, 0.0f, 10.0f * staticgrip_spec); // kN, static grip as final load
 		if (mPeakSlipAngle < UMath::Abs(mSlipAngle))
 			mTraction *= UMath::Pow(mPeakSlipAngle / UMath::Abs(mSlipAngle), mPeakSlipAngle / UMath::Abs(mSlipAngle) * load_factor + 1.0f);
-		float slip_limit = dynamicgrip_spec * 0.1f; // this allows better tires to increase traction itself
 		if (UMath::Abs(slip_ratio) > slip_limit)
 			mTraction *= UMath::Pow(slip_limit / UMath::Abs(slip_ratio), slip_limit / UMath::Abs(slip_ratio) * load_factor + 1.0f);
 	}
@@ -624,7 +641,7 @@ void SuspensionRacerMW::OnTaskSimulate(float dT) {
 	}
 
 	// compression affects drag slightly
-	float drag_pct = (1.0f - mGameBreaker * 0.75f) * UMath::Pow(1.01f - compression, 0.01f);
+	float drag_pct = (1.0f - mGameBreaker * 0.75f) * UMath::Pow(1.0f - compression * 0.99f, 0.01f);
 	float aero_pct = 1.0f;
 	/*if (state.driver_style == STYLE_DRAG) {
 		aero_pct = Tweak_DragAeroMult;
